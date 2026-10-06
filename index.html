@@ -162,7 +162,9 @@
             display: none; background: #000; z-index: 5;
         }
         #audio-player { width: min(88%, 760px); height: 72px; margin: auto; align-self: center; }
-        .player-status { position:absolute; z-index:4; bottom:12px; left:14px; right:14px; color:#aaa; font:600 .8rem 'Source Code Pro', monospace; text-align:center; pointer-events:none; }
+        .player-status { position:absolute; z-index:15; bottom:10px; left:10px; right:10px; color:#eee; font:600 .78rem 'Source Code Pro', monospace; text-align:center; pointer-events:auto; background:rgba(0,0,0,.78); border:1px solid rgba(255,215,0,.22); border-radius:10px; padding:8px; }
+        .player-action { display:inline-flex; align-items:center; justify-content:center; min-height:36px; margin:6px 4px 0; padding:7px 12px; border:1px solid var(--primary); border-radius:8px; color:var(--primary); text-decoration:none; font:700 .72rem 'Orbitron',sans-serif; }
+        .player-action:hover, .player-action:focus-visible { background:var(--primary); color:#000; outline:2px solid #fff; outline-offset:2px; }
         .channel-card:focus-visible, .btn:focus-visible, .filter-btn:focus-visible, .api-card:focus-visible, input:focus-visible, select:focus-visible { outline:3px solid var(--primary); outline-offset:3px; }
         button, .channel-card, .api-card { touch-action: manipulation; }
         @media (max-width: 700px) {
@@ -851,7 +853,7 @@
                     <option value="tv">Series (TMDB ID)</option>
                     <option value="livetv">Live TV (M3U8 HLS Link)</option>
                     <option value="iframe">Sports/Web Embed (URL)</option>
-                    <option value="youtube">YouTube (Video ID / Channel ID)</option>
+                    <option value="youtube">YouTube (Video / Playlist / Channel URL)</option>
                     <option value="game">Cloud Game (URL)</option>
                     <option value="music">Music / YouTube video</option>
                     <option value="audio">Direct audio URL (MP3, M4A, AAC, WAV, OGG, FLAC, OPUS)</option>
@@ -1041,14 +1043,22 @@
             try {
                 const url = new URL(raw);
                 const host = url.hostname.replace(/^www\./, '').replace(/^m\./, '');
-                if (host === 'youtu.be') return { id: url.pathname.split('/').filter(Boolean)[0] || '' };
+                if (host === 'youtu.be') {
+                    const shortId = url.pathname.split('/').filter(Boolean)[0] || '';
+                    const shortPlaylist = url.searchParams.get('list');
+                    return shortId ? { id: shortId } : (shortPlaylist ? { playlist: shortPlaylist } : null);
+                }
                 if (!['youtube.com', 'music.youtube.com', 'youtube-nocookie.com'].includes(host) && !host.endsWith('.youtube.com')) return null;
                 const parts = url.pathname.split('/').filter(Boolean);
                 const id = url.searchParams.get('v') || (['embed','shorts','live','v'].includes(parts[0]) ? parts[1] : '');
+                const playlist = url.searchParams.get('list');
+                const liveChannel = url.searchParams.get('channel');
                 const channelParts = url.pathname.split('/').filter(Boolean);
+                if (liveChannel) return { channel: liveChannel };
                 if (channelParts[0] === 'channel' && channelParts[1]) return { channel: channelParts[1] };
                 if (channelParts[0] && (channelParts[0].startsWith('@') || ['c','user'].includes(channelParts[0]))) return { channelPage: `https://www.youtube.com/${channelParts.map(encodeURIComponent).join('/')}` };
-                return id ? { id } : null;
+                if (id) return { id };
+                return playlist ? { playlist } : null;
             } catch { return null; }
         }
 
@@ -1108,9 +1118,39 @@
         // -------------------------
         // PASTE & PLAY ENGINE
         // -------------------------
-        function setPlayerStatus(message) {
+        function setPlayerStatus(message, actions = []) {
             const status = document.getElementById('player-status');
-            if (status) status.textContent = message;
+            if (!status) return;
+            status.replaceChildren(document.createTextNode(String(message || '')));
+            for (const action of actions) {
+                const href = safeWebUrl(action && action.href);
+                if (!href) continue;
+                const link = document.createElement('a');
+                link.className = 'player-action'; link.href = href; link.target = '_blank';
+                link.rel = 'noopener noreferrer'; link.textContent = String(action.label || 'OPEN LINK');
+                status.appendChild(link);
+            }
+        }
+        function youtubeChannelLinks(channelId, channelUrl) {
+            let base = '';
+            if (channelId && /^UC[A-Za-z0-9_-]{22}$/.test(channelId)) base = `https://www.youtube.com/channel/${encodeURIComponent(channelId)}`;
+            else {
+                const safeUrl = safeWebUrl(channelUrl);
+                const target = safeUrl ? youtubeTarget(safeUrl) : null;
+                if (target && target.channel) base = `https://www.youtube.com/channel/${encodeURIComponent(target.channel)}`;
+                else if (target && target.channelPage) {
+                    try { const parsed = new URL(target.channelPage); parsed.pathname = parsed.pathname.replace(/\/(live|videos|shorts)\/?$/, '').replace(/\/$/, ''); base = parsed.href; } catch {}
+                }
+            }
+            return base ? [
+                { label: 'WATCH LIVE ON YOUTUBE', href: `${base}/live` },
+                { label: 'BROWSE CHANNEL VIDEOS', href: `${base}/videos` }
+            ] : [];
+        }
+        function youtubeChannelFallback(title, channelId, channelUrl) {
+            setPlayerStatus(`${title}: the embedded live player only has a video while the channel is broadcasting. Open the official channel for its live feed or recent uploads.`, youtubeChannelLinks(channelId, channelUrl));
+            showToast('OFFICIAL YOUTUBE CHANNEL OPTIONS READY');
+            return false;
         }
         function hideAllPlayers() {
             if (activeHls) { activeHls.destroy(); activeHls = null; }
@@ -1132,18 +1172,16 @@
                 const frame = document.getElementById('yt-frame');
                 frame.style.display = 'block';
                 frame.src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(yt.id)}?autoplay=1&rel=0&playsinline=1`;
-                setPlayerStatus(`YouTube: ${title}`); showToast('OPENING YOUTUBE VIDEO'); return true;
+                setPlayerStatus(`YouTube video: ${title}. If embedding is restricted, use the official link.`, [{ label: 'WATCH ON YOUTUBE', href: `https://www.youtube.com/watch?v=${encodeURIComponent(yt.id)}` }]);
+                showToast('OPENING YOUTUBE VIDEO'); return true;
             }
-            if (yt && yt.channel) {
-                const frame = document.getElementById('yt-frame');
-                frame.style.display = 'block';
-                frame.src = `https://www.youtube-nocookie.com/embed/live_stream?channel=${encodeURIComponent(yt.channel)}&autoplay=1&rel=0&playsinline=1`;
-                setPlayerStatus(`YouTube channel: ${title}`); showToast('OPENING YOUTUBE CHANNEL'); return true;
+            if (yt && yt.playlist) {
+                const frame = document.getElementById('yt-frame'); frame.style.display = 'block';
+                frame.src = `https://www.youtube-nocookie.com/embed/videoseries?list=${encodeURIComponent(yt.playlist)}&autoplay=1&rel=0&playsinline=1`;
+                setPlayerStatus(`YouTube playlist: ${title}. If embedding is restricted, open it on YouTube.`, [{ label: 'OPEN PLAYLIST ON YOUTUBE', href: `https://www.youtube.com/playlist?list=${encodeURIComponent(yt.playlist)}` }]);
+                showToast('OPENING YOUTUBE PLAYLIST'); return true;
             }
-            if (yt && yt.channelPage) {
-                window.open(yt.channelPage, '_blank', 'noopener,noreferrer');
-                setPlayerStatus(`Opened the official YouTube channel page for ${title}.`); return true;
-            }
+            if (yt && (yt.channel || yt.channelPage)) return youtubeChannelFallback(title, yt.channel || '', yt.channelPage || '');
             const kind = mediaKind(url);
             if (kind === 'audio') {
                 const audio = document.getElementById('audio-player');
@@ -1227,6 +1265,7 @@
                 const yt = youtubeTarget(safeWebUrl(data));
                 entry.type = 'youtube'; entry.category = type === 'music' ? 'music' : 'livetv';
                 if (yt && yt.id) entry.id = yt.id;
+                else if (yt && yt.playlist) entry.playlistId = yt.playlist;
                 else if (yt && yt.channel) entry.channelId = yt.channel;
                 else if (yt && yt.channelPage) entry.channelUrl = yt.channelPage;
                 else if (/^[A-Za-z0-9_-]{11}$/.test(data)) entry.id = data;
@@ -1497,11 +1536,15 @@
             let openedSource = true;
             if (ch.type === 'youtube') {
                 const frame = document.getElementById('yt-frame');
-                if (ch.channelId) { frame.style.display = 'block'; frame.src = `https://www.youtube-nocookie.com/embed/live_stream?channel=${encodeURIComponent(ch.channelId)}&autoplay=1&rel=0&playsinline=1`; }
-                else if (ch.id) { frame.style.display = 'block'; frame.src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(ch.id)}?autoplay=1&rel=0&playsinline=1`; }
-                else if (safeWebUrl(ch.channelUrl)) { window.open(safeWebUrl(ch.channelUrl), '_blank', 'noopener,noreferrer'); setPlayerStatus(`Opened official YouTube channel: ${ch.name}`); }
-                else { setPlayerStatus('This YouTube item has no valid video or channel ID.'); openedSource = false; }
-                if (ch.id || ch.channelId) setPlayerStatus(`YouTube: ${ch.name}`);
+                if (ch.channelId || safeWebUrl(ch.channelUrl)) {
+                    openedSource = youtubeChannelFallback(ch.name, ch.channelId || '', ch.channelUrl || '');
+                } else if (ch.playlistId) {
+                    frame.style.display = 'block'; frame.src = `https://www.youtube-nocookie.com/embed/videoseries?list=${encodeURIComponent(ch.playlistId)}&autoplay=1&rel=0&playsinline=1`;
+                    setPlayerStatus(`YouTube playlist: ${ch.name}. If embedding is restricted, open it on YouTube.`, [{ label: 'OPEN PLAYLIST ON YOUTUBE', href: `https://www.youtube.com/playlist?list=${encodeURIComponent(ch.playlistId)}` }]);
+                } else if (ch.id) {
+                    frame.style.display = 'block'; frame.src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(ch.id)}?autoplay=1&rel=0&playsinline=1`;
+                    setPlayerStatus(`YouTube video: ${ch.name}. If embedding is restricted, use the official link.`, [{ label: 'WATCH ON YOUTUBE', href: `https://www.youtube.com/watch?v=${encodeURIComponent(ch.id)}` }]);
+                } else { setPlayerStatus('This YouTube item has no valid video, playlist, or channel link.'); openedSource = false; }
             } else if (ch.type === 'cinema') {
                 if (safeWebUrl(ch.url) && mediaKind(safeWebUrl(ch.url))) {
                     playDirectMedia(ch.url, ch.name);

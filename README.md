@@ -22,7 +22,7 @@ The TMDB key previously embedded in the public source should be revoked/rotated 
 
 ## Add media and TV
 
-Use **Admin** to add YouTube videos/channels or direct audio/video/HLS URLs. Direct source URLs must be absolute HTTP(S) links and work only when supported by the browser, the stream's codecs, and its CORS policy. For catalog items, add the TMDB ID; playback is available only when an authorized direct playback URL is supplied. Otherwise, use **Official Source** to discover licensed watch options.
+Use **Admin** to add YouTube videos, playlists, channels, or direct audio/video/HLS URLs. Videos and playlists play in the embedded player when YouTube permits embedding; a **Watch on YouTube** fallback is available for restricted videos. A channel ID is not itself a video, and its live embed fails when no broadcast is active, so channel entries show official **Watch Live** and **Browse Channel Videos** links instead. Direct source URLs must be absolute HTTP(S) links and work only when supported by the browser, the stream's codecs, and its CORS policy. For catalog items, add the TMDB ID; playback is available only when an authorized direct playback URL is supplied. Otherwise, use **Official Source** to discover licensed watch options.
 
 Common audio formats include MP3, M4A, AAC, WAV, OGG, OPUS, and FLAC. Common video formats include MP4, WebM, MOV, and HLS; actual support varies by device. DRM playback and MPEG-DASH are not implemented.
 
