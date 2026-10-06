@@ -1,0 +1,15 @@
+{
+  "id": "/",
+  "name": "Stream HD Media Player",
+  "short_name": "Stream HD",
+  "description": "A responsive player for authorized live streams, video, audio, and catalog metadata.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#050505",
+  "theme_color": "#050505",
+  "orientation": "any",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

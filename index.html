@@ -157,17 +157,30 @@
             align-items: center; 
             justify-content: center; 
         }
-        #player, #movie-frame, #yt-frame, #game-frame { 
-            width: 100%; 
-            height: 100%; 
-            position: absolute; 
-            top:0; 
-            left:0; 
-            border: none; 
-            display: none; 
-            background: #000; 
-            z-index: 5;
+        #player, #movie-frame, #yt-frame, #game-frame, #audio-player {
+            width: 100%; height: 100%; position: absolute; inset: 0; border: none;
+            display: none; background: #000; z-index: 5;
         }
+        #audio-player { width: min(88%, 760px); height: 72px; margin: auto; align-self: center; }
+        .player-status { position:absolute; z-index:4; bottom:12px; left:14px; right:14px; color:#aaa; font:600 .8rem 'Source Code Pro', monospace; text-align:center; pointer-events:none; }
+        .channel-card:focus-visible, .btn:focus-visible, .filter-btn:focus-visible, .api-card:focus-visible, input:focus-visible, select:focus-visible { outline:3px solid var(--primary); outline-offset:3px; }
+        button, .channel-card, .api-card { touch-action: manipulation; }
+        @media (max-width: 700px) {
+            .app-container { padding: 12px; gap: 14px; }
+            .header { padding: 14px; flex-wrap: wrap; gap: 12px; }
+            .branding { font-size: 1.25rem; letter-spacing: 1px; }
+            .whatsapp-badge { font-size: .65rem; padding: 8px 10px; }
+            .control-dock, .card { padding: 16px; }
+            .btn-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+            .btn { min-height: 44px; padding: 11px 8px; font-size: .68rem; }
+            .filter-tabs { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+            .channel-list { grid-template-columns: repeat(auto-fill, minmax(105px, 1fr)); gap: 10px; }
+            .channel-card { aspect-ratio: 2/3; }
+            .card-info { bottom:0; opacity:1; }
+            .input-lg { font-size: 1rem; padding: 14px; }
+            .search-box > div:first-of-type { flex-wrap: wrap; }
+        }
+        @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior:auto !important; animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; } }
 
         .loader { 
             width: 55px; 
@@ -840,7 +853,9 @@
                     <option value="iframe">Sports/Web Embed (URL)</option>
                     <option value="youtube">YouTube (Video ID / Channel ID)</option>
                     <option value="game">Cloud Game (URL)</option>
-                    <option value="music">Music Stream (YouTube ID)</option>
+                    <option value="music">Music / YouTube video</option>
+                    <option value="audio">Direct audio URL (MP3, M4A, AAC, WAV, OGG, FLAC, OPUS)</option>
+                    <option value="video">Direct video URL (MP4, WebM, MOV, M3U8)</option>
                 </select>
             </div>
             <div class="admin-group">
@@ -849,7 +864,16 @@
             </div>
             <div class="admin-group">
                 <label>POSTER IMAGE URL (Optional)</label>
-                <input type="text" id="ad-img" placeholder="Leave blank to auto-generate">
+                <input type="url" id="ad-img" placeholder="https://…">
+            </div>
+            <div class="admin-group">
+                <label>AUTHORIZED DIRECT PLAYBACK URL (Optional)</label>
+                <input type="url" id="ad-playback-url" placeholder="Your licensed/owned MP4, M3U8, or audio URL">
+            </div>
+            <div class="admin-group">
+                <label>TMDB API KEY (STORED ONLY IN THIS BROWSER)</label>
+                <input type="password" id="tmdb-api-key-input" autocomplete="off" placeholder="Paste your own TMDB API key">
+                <button class="btn" style="margin-top:8px;width:100%;" onclick="saveTmdbKey()">SAVE TMDB KEY</button>
             </div>
             <div style="display: flex; gap: 10px; margin-top: 30px;">
                 <button class="btn btn-primary" style="flex:1;" onclick="adminSaveContent()">💾 ADD</button>
@@ -883,6 +907,8 @@
             <div class="stage-container" id="stage">
                 <div id="loader" class="loader"></div>
                 <div id="player"></div>
+                <audio id="audio-player" controls playsinline preload="metadata" aria-label="Audio player"></audio>
+                <div id="player-status" class="player-status" role="status" aria-live="polite">Choose a channel or paste a supported media link.</div>
                 <iframe id="movie-frame" referrerpolicy="no-referrer" allowfullscreen allow="autoplay; encrypted-media; picture-in-picture"></iframe>
                 <iframe id="yt-frame" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
                 <iframe id="game-frame" allowfullscreen></iframe>
@@ -890,10 +916,10 @@
 
             <!-- PASTE & PLAY PANEL -->
             <div class="paste-play-box">
-                <input type="text" id="paste-link-input" class="paste-input" placeholder="Paste Video, Audio or Live Stream Link here...">
+                <input type="url" id="paste-link-input" class="paste-input" placeholder="Paste an authorized YouTube, HLS, video, or audio URL..." aria-label="Media URL" autocomplete="url">
                 <div style="display: flex; gap: 8px;">
                     <button class="btn btn-primary" style="padding: 12px 20px;" onclick="handlePastePlay()">▶️ PLAY</button>
-                    <button class="btn" style="border-color:#ff8c00; color:#ff8c00; padding:12px 15px;" onclick="handlePasteDownload()">⬇️ DOWNLOAD</button>
+                    <button class="btn" style="border-color:#ff8c00; color:#ff8c00; padding:12px 15px;" onclick="handlePasteDownload()">↗ OPEN LINK</button>
                 </div>
             </div>
 
@@ -901,7 +927,7 @@
                 <div class="btn-grid">
                     <button class="btn btn-primary" onclick="openSearch('movie')">🎬 FIND MOVIE</button>
                     <button class="btn btn-primary" onclick="openSearch('tv')">📺 FIND SERIES</button>
-                    <button class="btn" style="border-color: #00f3ff; color: #00f3ff;" onclick="extractDownloadLink()">⬇️ DOWNLOAD MP4</button>
+                    <button class="btn" style="border-color: #00f3ff; color: #00f3ff;" onclick="extractDownloadLink()">↗ OPEN SOURCE</button>
 
                     <button class="btn" style="border-color: #00ff41; color: #00ff41;" onclick="document.getElementById('local-video').click()">📂 PLAY LOCAL</button>
                     <input type="file" id="local-video" accept="video/mp4,video/x-m4v,video/*,audio/*" onchange="playLocalVideo(event)">
@@ -909,7 +935,7 @@
                     <button class="btn" onclick="togglePiP()">📱 MINI PLAYER</button>
                     <button class="btn" style="border-color: #ff8c00; color: #ff8c00;" onclick="handleAdminLogin()">⚙️ ADMIN</button>
                     <button id="vip-btn" class="btn" onclick="activateVIP()">👑 VIP PORTAL</button>
-                    <button class="btn" onclick="switchMirror()">🔄 FIX SERVER</button>
+                    <button class="btn" onclick="switchMirror()">📺 OFFICIAL SOURCE</button>
                     <button id="install-app-btn" class="btn" onclick="installApp()">📥 INSTALL APP</button>
                 </div>
             </div>
@@ -928,6 +954,8 @@
                     <button class="filter-btn" onclick="setFilter('kenya', this)">🇰🇪 KENYA</button>
                     <button class="filter-btn" onclick="setFilter('livetv', this)">LIVE TV</button>
                     <button class="filter-btn" onclick="setFilter('music', this)">MUSIC</button>
+                    <button class="filter-btn" onclick="setFilter('audio', this)">AUDIO</button>
+                    <button class="filter-btn" onclick="setFilter('video', this)">VIDEO</button>
                     <button class="filter-btn" onclick="setFilter('sports', this)">⚽ SPORTS</button>
                 </div>
 
@@ -974,13 +1002,55 @@
             overlay.addEventListener('click', function(e) { if (e.target === this) closeOverlay(this.id); });
         });
 
-        let art, activeIdx = 0, currentMirrorIdx = 0;
+        let art, activeIdx = 0;
         let currentFilter = 'all';
         let searchMode = 'movie';
         let isVIP = localStorage.getItem('nebula_vip_status') === 'true';
-        let RECENT_WATCHED = JSON.parse(localStorage.getItem('nebula_recent')) || [];
-
-        const TMDB_API_KEY = "15d2ea6d0dc1d476efbca3eba2b9bbfb";
+        function readJsonStorage(key, fallback) {
+            try { const value = JSON.parse(localStorage.getItem(key)); return value ?? fallback; }
+            catch (error) { console.warn(`Ignoring invalid local data for ${key}`, error); return fallback; }
+        }
+        let RECENT_WATCHED = readJsonStorage('nebula_recent', []);
+        if (!Array.isArray(RECENT_WATCHED)) RECENT_WATCHED = [];
+        function getTmdbApiKey() { return (window.STREAMHD_CONFIG && window.STREAMHD_CONFIG.tmdbApiKey) || localStorage.getItem('streamhd_tmdb_api_key') || ''; }
+        async function tmdbFetch(path, params = {}) {
+            const apiKey = getTmdbApiKey();
+            if (!apiKey) throw new Error('TMDB_API_KEY_MISSING');
+            const url = new URL(`https://api.themoviedb.org/3/${path.replace(/^\//, '')}`);
+            url.search = new URLSearchParams({ ...params, api_key: apiKey }).toString();
+            const response = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
+            if (!response.ok) throw new Error(`TMDB_HTTP_${response.status}`);
+            return response.json();
+        }
+        function safeWebUrl(value) {
+            const raw = String(value || '').trim();
+            if (!raw) return '';
+            try { const url = new URL(raw); return ['http:', 'https:'].includes(url.protocol) ? url.href : ''; }
+            catch { return ''; }
+        }
+        function mediaKind(url) {
+            try {
+                const pathname = new URL(url).pathname.toLowerCase();
+                if (/\.(mp3|m4a|aac|wav|ogg|oga|opus|flac)$/.test(pathname)) return 'audio';
+                if (/\.(m3u8)$/.test(pathname)) return 'hls';
+                if (/\.(mp4|m4v|webm|mov|ogv|mkv)$/.test(pathname)) return 'video';
+            } catch {}
+            return '';
+        }
+        function youtubeTarget(raw) {
+            try {
+                const url = new URL(raw);
+                const host = url.hostname.replace(/^www\./, '').replace(/^m\./, '');
+                if (host === 'youtu.be') return { id: url.pathname.split('/').filter(Boolean)[0] || '' };
+                if (!['youtube.com', 'music.youtube.com', 'youtube-nocookie.com'].includes(host) && !host.endsWith('.youtube.com')) return null;
+                const parts = url.pathname.split('/').filter(Boolean);
+                const id = url.searchParams.get('v') || (['embed','shorts','live','v'].includes(parts[0]) ? parts[1] : '');
+                const channelParts = url.pathname.split('/').filter(Boolean);
+                if (channelParts[0] === 'channel' && channelParts[1]) return { channel: channelParts[1] };
+                if (channelParts[0] && (channelParts[0].startsWith('@') || ['c','user'].includes(channelParts[0]))) return { channelPage: `https://www.youtube.com/${channelParts.map(encodeURIComponent).join('/')}` };
+                return id ? { id } : null;
+            } catch { return null; }
+        }
 
         const DEFAULT_CHANNELS = [
             { name: "CITIZEN TV", channelId: "UChBQgieUidXV1CmDxSdRm3g", type: "youtube", category: "kenya", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/Citizen_TV_logo.png/600px-Citizen_TV_logo.png", watched: false, fav: false, reqVip: false },
@@ -994,16 +1064,11 @@
             { name: "WEDNESDAY", tmdbId: "119051", type: "cinema", cType: "tv", category: "tv", img: "https://image.tmdb.org/t/p/w500/9PFGoY6K66vSgB68vA7z9Zg4961.jpg", watched: false, fav: false, reqVip: false }
         ];
 
-        let CHANNELS = JSON.parse(localStorage.getItem('nebula_v44')) || DEFAULT_CHANNELS;
+        const storedChannels = readJsonStorage('nebula_v44', null);
+        let CHANNELS = Array.isArray(storedChannels) ? storedChannels.filter(item => item && typeof item === 'object' && typeof item.name === 'string').slice(0, 500) : DEFAULT_CHANNELS;
 
-        // Upgraded mirror server list with automatic failovers
-        const MIRRORS = [
-            { name: "VIDSRC PRO", build: (type, id) => `https://vidsrc.pro/embed/${type}/${id}` },
-            { name: "EMBED.SU", build: (type, id) => `https://embed.su/embed/${type}/${id}` },
-            { name: "VIDSRC VIP", build: (type, id) => `https://vidsrc.vip/embed/${type}/${id}` },
-            { name: "VIDSRC NET", build: (type, id) => `https://vidsrc.net/embed/${type}?tmdb=${id}` },
-            { name: "AUTO EMBED", build: (type, id) => `https://player.autoembed.cc/embed/${type}/${id}` }
-        ];
+        // Catalog metadata links to TMDB; playback uses user-supplied or authorized sources only.
+        let activeHls = null;
 
         art = new Artplayer({
             container: '#player',
@@ -1015,64 +1080,100 @@
             pip: true,
             hotkey: true,
             setting: true,
-            customType: { m3u8: (video, url) => { if (Hls.isSupported()) { const hls = new Hls(); hls.loadSource(url); hls.attachMedia(video); } } }
+            customType: { m3u8: (video, url) => {
+                if (activeHls) { activeHls.destroy(); activeHls = null; }
+                if (Hls.isSupported()) {
+                    activeHls = new Hls({ enableWorker: true, backBufferLength: 30 });
+                    activeHls.loadSource(url); activeHls.attachMedia(video);
+                    activeHls.on(Hls.Events.ERROR, (_event, data) => {
+                        if (!data.fatal) return;
+                        if (data.type === Hls.ErrorTypes.NETWORK_ERROR) activeHls.startLoad();
+                        else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) activeHls.recoverMediaError();
+                        else { activeHls.destroy(); activeHls = null; showToast('HLS PLAYBACK IS NOT SUPPORTED OR THE STREAM IS UNAVAILABLE'); }
+                    });
+                } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                    video.src = url; // Native HLS path for Safari, iPhone/iPad, and Apple TV browsers.
+                } else {
+                    showToast('THIS DEVICE DOES NOT SUPPORT HLS PLAYBACK');
+                }
+            } }
         });
 
-        // Detect and handle stream loading issues automatically
         art.on('error', (err) => {
-            console.error("ArtPlayer encountered a runtime stream error:", err);
-            showToast("STREAM INTERRUPTED. INITIATING AUTO-FAILOVER RESCUE...");
-            setTimeout(() => {
-                switchMirror();
-            }, 1000);
+            console.error('Player error:', err);
+            setPlayerStatus('Playback failed. Check the URL, media format, CORS policy, and device codec support.');
+            showToast('PLAYBACK ERROR — CHECK THE SOURCE URL AND DEVICE SUPPORT');
         });
 
         // -------------------------
         // PASTE & PLAY ENGINE
         // -------------------------
-        function handlePastePlay() {
-            const rawUrl = document.getElementById('paste-link-input').value.trim();
-            if (!rawUrl) return showToast("PLEASE PASTE A VALID LINK FIRST");
-
-            const playerEl = document.getElementById('player');
-            const movieFrame = document.getElementById('movie-frame');
-            const ytFrame = document.getElementById('yt-frame');
-            const gameFrame = document.getElementById('game-frame');
-
-            playerEl.style.display = 'none'; movieFrame.style.display = 'none'; ytFrame.style.display = 'none'; gameFrame.style.display = 'none';
-            art.pause(); movieFrame.src = ''; ytFrame.src = ''; gameFrame.src = '';
-
+        function setPlayerStatus(message) {
+            const status = document.getElementById('player-status');
+            if (status) status.textContent = message;
+        }
+        function hideAllPlayers() {
+            if (activeHls) { activeHls.destroy(); activeHls = null; }
+            ['player', 'audio-player', 'movie-frame', 'yt-frame', 'game-frame'].forEach(id => {
+                const el = document.getElementById(id); if (el) el.style.display = 'none';
+            });
+            const audio = document.getElementById('audio-player');
+            if (audio) { audio.pause(); audio.removeAttribute('src'); audio.load(); }
+            if (art) { try { art.pause(); } catch {} }
+            ['movie-frame', 'yt-frame', 'game-frame'].forEach(id => { const el = document.getElementById(id); if (el) el.src = ''; });
+        }
+        function playDirectMedia(rawUrl, title = 'Direct media') {
+            const url = safeWebUrl(rawUrl);
+            if (!url) { showToast('USE A VALID HTTP OR HTTPS MEDIA LINK'); return false; }
+            const yt = youtubeTarget(url);
+            hideAllPlayers();
             triggerLoader();
-
-            setTimeout(() => {
-                if (rawUrl.includes('youtube.com/') || rawUrl.includes('youtu.be/')) {
-                    ytFrame.style.display = 'block';
-                    let videoId = "";
-                    if (rawUrl.includes('youtu.be/')) {
-                        videoId = rawUrl.split('/').pop().split('?')[0];
-                    } else {
-                        videoId = rawUrl.split('v=')[1]?.split('&')[0];
-                    }
-                    ytFrame.src = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1`;
-                    showToast("PLAYING YOUTUBE STREAM");
-                } else if (rawUrl.endsWith('.m3u8') || rawUrl.includes('.m3u8?') || rawUrl.endsWith('.mp4') || rawUrl.endsWith('.mp3') || rawUrl.endsWith('.mkv')) {
-                    playerEl.style.display = 'block';
-                    art.switchUrl(rawUrl);
-                    showToast("PLAYING DIRECT STREAM");
-                } else {
-                    movieFrame.style.display = 'block';
-                    movieFrame.src = rawUrl;
-                    showToast("PLAYING EMBEDDED URL");
-                }
-            }, 100);
+            if (yt && yt.id) {
+                const frame = document.getElementById('yt-frame');
+                frame.style.display = 'block';
+                frame.src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(yt.id)}?autoplay=1&rel=0&playsinline=1`;
+                setPlayerStatus(`YouTube: ${title}`); showToast('OPENING YOUTUBE VIDEO'); return true;
+            }
+            if (yt && yt.channel) {
+                const frame = document.getElementById('yt-frame');
+                frame.style.display = 'block';
+                frame.src = `https://www.youtube-nocookie.com/embed/live_stream?channel=${encodeURIComponent(yt.channel)}&autoplay=1&rel=0&playsinline=1`;
+                setPlayerStatus(`YouTube channel: ${title}`); showToast('OPENING YOUTUBE CHANNEL'); return true;
+            }
+            if (yt && yt.channelPage) {
+                window.open(yt.channelPage, '_blank', 'noopener,noreferrer');
+                setPlayerStatus(`Opened the official YouTube channel page for ${title}.`); return true;
+            }
+            const kind = mediaKind(url);
+            if (kind === 'audio') {
+                const audio = document.getElementById('audio-player');
+                audio.src = url; audio.style.display = 'block'; audio.load();
+                if ('mediaSession' in navigator && 'MediaMetadata' in window) navigator.mediaSession.metadata = new MediaMetadata({ title: String(title), artist: 'Stream HD' });
+                audio.play().catch(() => setPlayerStatus('Audio is ready. Press Play to start (autoplay may be blocked).'));
+                setPlayerStatus(`Audio: ${title}`); return true;
+            }
+            if (kind === 'video' || kind === 'hls') {
+                document.getElementById('player').style.display = 'block';
+                art.switchUrl(url, kind === 'hls' ? 'm3u8' : undefined);
+                setPlayerStatus(`${kind === 'hls' ? 'Live / HLS' : 'Video'}: ${title}`); return true;
+            }
+            setPlayerStatus('Unsupported link. Use YouTube or a direct MP3/M4A/AAC/WAV/OGG/FLAC/OPUS, MP4/WebM/MOV/MKV, or M3U8 URL.');
+            showToast('UNSUPPORTED MEDIA LINK'); return false;
+        }
+        function handlePastePlay() {
+            const input = document.getElementById('paste-link-input');
+            const rawUrl = input.value.trim();
+            if (!rawUrl) return showToast('PASTE A MEDIA URL FIRST');
+            playDirectMedia(rawUrl, 'Pasted media');
         }
 
         function handlePasteDownload() {
-            const rawUrl = document.getElementById('paste-link-input').value.trim();
-            if (!rawUrl) return showToast("NO DOWNLOADABLE URL PRESENT");
-            showToast("REDIRECTING TO DOWNLOADING GATEWAY...");
-            setTimeout(() => { window.open(`https://9xbuddy.com/process?url=${encodeURIComponent(rawUrl)}`, '_blank'); }, 1000);
+            const url = safeWebUrl(document.getElementById('paste-link-input').value.trim());
+            if (!url) return showToast('PASTE A VALID DIRECT MEDIA URL FIRST');
+            window.open(url, '_blank', 'noopener,noreferrer');
+            showToast('OPENED THE SOURCE URL — USE ITS PERMITTED DOWNLOAD OPTIONS');
         }
+
 
         // -------------------------
         // ADMIN & DB BACKUP ENGINE
@@ -1094,6 +1195,13 @@
             }
         }
 
+        function saveTmdbKey() {
+            const key = document.getElementById('tmdb-api-key-input').value.trim();
+            if (!key) return showToast('PASTE YOUR TMDB API KEY FIRST');
+            try { localStorage.setItem('streamhd_tmdb_api_key', key); document.getElementById('tmdb-api-key-input').value = ''; showToast('TMDB KEY SAVED IN THIS BROWSER'); }
+            catch { showToast('COULD NOT SAVE THE KEY IN BROWSER STORAGE'); }
+        }
+
         function changeAdminPassword() {
             let currentPass = localStorage.getItem('nebula_admin_pass');
             let entered = prompt("Verify your CURRENT password to change it:");
@@ -1110,18 +1218,34 @@
             const title = document.getElementById('ad-title').value.trim();
             const type = document.getElementById('ad-type').value;
             const data = document.getElementById('ad-data').value.trim();
-            const img = document.getElementById('ad-img').value.trim();
-
-            if(!title || !data) return showToast("TITLE AND DATA REQUIRED");
-
-            const entry = { name: title.toUpperCase(), category: type === 'youtube' ? 'livetv' : type, img: img || "", watched: false, fav: false, reqVip: (type === 'game' || type === 'iframe') };
-
-            if(type === 'movie' || type === 'tv') { entry.type = 'cinema'; entry.cType = type; entry.tmdbId = data; }
-            else if (type === 'youtube' || type === 'music') { entry.type = 'youtube'; entry.category = type === 'music' ? 'music' : 'livetv'; if(data.length === 24) entry.channelId = data; else entry.id = data; }
-            else if (type === 'game' || type === 'iframe') { entry.type = type; entry.url = data; entry.category = type === 'game' ? 'game' : 'sports'; }
-            else { entry.type = 'hls'; entry.url = data; }
-
-            CHANNELS.unshift(entry); save(); renderChannels(); closeOverlay('admin-overlay'); showToast("CONTENT ADDED SUCCESSFULLY");
+            const img = safeWebUrl(document.getElementById('ad-img').value.trim());
+            const playbackUrl = safeWebUrl(document.getElementById('ad-playback-url').value.trim());
+            if (!title || !data) return showToast('TITLE AND DATA REQUIRED');
+            const entry = { name: title.slice(0, 120), category: type, type, img, watched: false, fav: false, reqVip: type === 'game' || type === 'iframe' };
+            if (type === 'movie' || type === 'tv') { entry.type = 'cinema'; entry.cType = type; entry.tmdbId = data; entry.url = playbackUrl; entry.category = type; }
+            else if (type === 'youtube' || type === 'music') {
+                const yt = youtubeTarget(safeWebUrl(data));
+                entry.type = 'youtube'; entry.category = type === 'music' ? 'music' : 'livetv';
+                if (yt && yt.id) entry.id = yt.id;
+                else if (yt && yt.channel) entry.channelId = yt.channel;
+                else if (yt && yt.channelPage) entry.channelUrl = yt.channelPage;
+                else if (/^[A-Za-z0-9_-]{11}$/.test(data)) entry.id = data;
+                else return showToast('ENTER A VALID YOUTUBE VIDEO OR CHANNEL URL/ID');
+            } else if (type === 'audio' || type === 'video' || type === 'hls') {
+                const url = safeWebUrl(data);
+                if (!url || (mediaKind(url) !== type && !(type === 'video' && mediaKind(url) === 'hls'))) return showToast('URL EXTENSION DOES NOT MATCH THE SELECTED MEDIA TYPE');
+                entry.type = type === 'video' && mediaKind(url) === 'hls' ? 'hls' : type;
+                entry.url = url;
+            } else if (type === 'game' || type === 'iframe') {
+                entry.url = safeWebUrl(data);
+                if (!entry.url) return showToast('ENTER A VALID HTTP OR HTTPS URL');
+                entry.category = type === 'game' ? 'game' : 'sports';
+            } else {
+                const url = safeWebUrl(data);
+                if (!url) return showToast('ENTER A VALID HTTP OR HTTPS URL');
+                entry.type = 'hls'; entry.url = url; entry.category = 'livetv';
+            }
+            CHANNELS.unshift(entry); save(); renderChannels(); closeOverlay('admin-overlay'); showToast('CONTENT ADDED');
         }
 
         function exportDB() {
@@ -1136,18 +1260,19 @@
         }
 
         function importDB(event) {
-            const file = event.target.files[0];
+            const file = event.target.files && event.target.files[0];
             if (!file) return;
+            if (file.size > 2 * 1024 * 1024) { showToast('BACKUP TOO LARGE (2 MB MAX)'); event.target.value = ''; return; }
             const reader = new FileReader();
             reader.onload = function(e) {
                 try {
                     const importedData = JSON.parse(e.target.result);
-                    if(Array.isArray(importedData)) {
-                        CHANNELS = importedData;
-                        save(); renderChannels(); closeOverlay('admin-overlay');
-                        showToast("DATABASE RESTORED SUCCESSFULLY!");
-                    } else showToast("INVALID BACKUP FILE");
-                } catch(err) { showToast("ERROR READING FILE"); }
+                    if (!Array.isArray(importedData) || importedData.length > 500) throw new Error('Invalid library');
+                    CHANNELS = importedData.filter(item => item && typeof item === 'object' && typeof item.name === 'string' && item.name.trim())
+                        .map(item => ({ ...item, name: item.name.trim().slice(0, 120), img: safeWebUrl(item.img), url: safeWebUrl(item.url) }));
+                    save(); renderChannels(); closeOverlay('admin-overlay'); showToast('LIBRARY RESTORED');
+                } catch (err) { showToast('INVALID OR UNSUPPORTED BACKUP FILE'); }
+                finally { event.target.value = ''; }
             };
             reader.readAsText(file);
         }
@@ -1166,7 +1291,7 @@
 
         async function openDetails(idx) {
             const ch = CHANNELS[idx];
-            if(ch.reqVip && !isVIP) return showToast("👑 VIP ACCESS REQUIRED");
+            if(ch.reqVip && !isVIP) return showToast('VIP ACCESS REQUIRED');
 
             if(ch.type !== 'cinema') return switchSource(idx);
 
@@ -1179,8 +1304,7 @@
             document.getElementById('details-overlay').style.display = 'flex';
 
             try {
-                const res = await fetch(`https://api.themoviedb.org/3/${ch.cType}/${ch.tmdbId}?api_key=${TMDB_API_KEY}`);
-                const data = await res.json();
+                const data = await tmdbFetch(`${ch.cType}/${encodeURIComponent(ch.tmdbId)}`);
 
                 if(data.id) {
                     const year = (ch.cType === 'tv' ? data.first_air_date : data.release_date) || "N/A";
@@ -1189,7 +1313,7 @@
                     document.getElementById('det-desc').innerText = data.overview || "No description available.";
                 }
             } catch (e) {
-                document.getElementById('det-desc').innerText = "Database connection failed.";
+                document.getElementById('det-desc').innerText = e.message === 'TMDB_API_KEY_MISSING' ? 'TMDB metadata is disabled until the site owner configures a TMDB API key.' : 'TMDB could not load this title. Check the API key or network.';
             }
         }
 
@@ -1202,8 +1326,7 @@
             const ch = CHANNELS[activeDetailsEntry];
             showToast("SEARCHING FOR TRAILER...");
             try {
-                const res = await fetch(`https://api.themoviedb.org/3/${ch.cType}/${ch.tmdbId}/videos?api_key=${TMDB_API_KEY}`);
-                const data = await res.json();
+                const data = await tmdbFetch(`${ch.cType}/${encodeURIComponent(ch.tmdbId)}/videos`);
                 if(data.results && data.results.length > 0) {
                     const trailer = data.results.find(v => v.type === "Trailer") || data.results[0];
                     window.open(`https://www.youtube.com/watch?v=${trailer.key}`, '_blank');
@@ -1231,20 +1354,20 @@
             document.getElementById('search-status').innerText = 'LOADING TRENDING TODAY...';
             document.getElementById('search-overlay').style.display = 'flex';
 
-            fetchTrending(type);
+            if (getTmdbApiKey()) fetchTrending(type);
+            else document.getElementById('search-status').innerText = 'TMDB API key not configured. Add window.STREAMHD_CONFIG.tmdbApiKey before this script.';
             setTimeout(() => document.getElementById('search-input').focus(), 100);
         }
 
         async function fetchTrending(type) {
             const resBox = document.getElementById('api-results');
             try {
-                const res = await fetch(`https://api.themoviedb.org/3/trending/${type}/day?api_key=${TMDB_API_KEY}`);
-                const data = await res.json();
+                const data = await tmdbFetch(`trending/${type}/day`);
                 if(data.results) {
                     document.getElementById('search-status').innerText = '🔥 TRENDING TODAY';
                     renderAPIResults(data.results, type);
                 }
-            } catch(e) { document.getElementById('search-status').innerText = "Trending failed to load."; }
+            } catch(e) { document.getElementById('search-status').innerText = e.message === 'TMDB_API_KEY_MISSING' ? 'Add a TMDB key in window.STREAMHD_CONFIG.tmdbApiKey to enable catalog search.' : 'Trending failed to load. Check the API key or try again.'; }
         }
 
         function startVoiceSearch() {
@@ -1273,50 +1396,51 @@
             statusBox.innerText = "CONNECTING TO GLOBAL DATABASE...";
 
             try {
-                const res = await fetch(`https://api.themoviedb.org/3/search/${searchMode}?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}`);
-                const data = await res.json();
+                const data = await tmdbFetch(`search/${searchMode}`, { query });
                 if(data.results && data.results.length > 0) {
                     statusBox.innerText = `FOUND ${data.results.length} RESULTS`;
                     renderAPIResults(data.results, searchMode);
                 } else { statusBox.innerText = "NO RESULTS FOUND."; }
-            } catch (e) { statusBox.innerText = "API CONNECTION FAILED. CHECK INTERNET."; }
+            } catch (e) { statusBox.innerText = e.message === 'TMDB_API_KEY_MISSING' ? 'TMDB API key not configured. Set window.STREAMHD_CONFIG.tmdbApiKey before this script.' : `API request failed (${e.message}). Check the key or network and retry.`; }
         }
 
         function renderAPIResults(results, type) {
             const resBox = document.getElementById('api-results');
             results.forEach(item => {
-                const title = type === 'tv' ? item.name : item.title;
-                const year = (type === 'tv' ? item.first_air_date : item.release_date) || "N/A";
+                const title = String((type === 'tv' ? item.name : item.title) || 'Untitled');
+                const year = String((type === 'tv' ? item.first_air_date : item.release_date) || 'N/A');
                 const img = item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : `https://ui-avatars.com/api/?name=${encodeURIComponent(title)}&background=222&color=fff&size=512`;
-
-                const div = document.createElement('div');
-                div.className = 'api-card';
-                div.innerHTML = `<img src="${img}" loading="lazy" style="width:100%; height:100%; object-fit:cover;"><div style="position:absolute; bottom:0; width:100%; background:rgba(0,0,0,0.9); padding:15px 10px; font-size:0.8rem; font-weight:bold;">${title} (${year.split('-')[0]})</div>`;
-                div.onclick = () => {
-                    const entry = { name: title.toUpperCase(), type: "cinema", cType: type, tmdbId: item.id, category: type, img: img, watched: false, fav: false, reqVip: false };
+                const card = document.createElement('button');
+                card.type = 'button'; card.className = 'api-card'; card.setAttribute('aria-label', `Add ${title}, ${year.slice(0,4)}`);
+                const image = document.createElement('img'); image.src = img; image.alt = `${title} poster`; image.loading = 'lazy'; image.style.cssText = 'width:100%;height:100%;object-fit:cover';
+                const caption = document.createElement('span'); caption.textContent = `${title} (${year.slice(0,4)})`;
+                caption.style.cssText = 'position:absolute;bottom:0;width:100%;background:rgba(0,0,0,.9);padding:15px 10px;font-size:.8rem;font-weight:bold;text-align:left;color:#fff';
+                card.append(image, caption);
+                card.addEventListener('click', () => {
+                    const entry = { name: title.toUpperCase(), type: 'cinema', cType: type, tmdbId: item.id, category: type, img, watched: false, fav: false, reqVip: false };
                     CHANNELS.unshift(entry); save(); closeSearch(); switchSource(0);
-                };
-                resBox.appendChild(div);
+                });
+                resBox.appendChild(card);
             });
         }
 
+        let localObjectUrl = '';
         function playLocalVideo(event) {
-            const file = event.target.files[0];
-            if(!file) return;
-            const url = URL.createObjectURL(file);
-
-            const playerEl = document.getElementById('player');
-            const movieFrame = document.getElementById('movie-frame');
-            const ytFrame = document.getElementById('yt-frame');
-            const gameFrame = document.getElementById('game-frame');
-
-            playerEl.style.display = 'block';
-            movieFrame.style.display = 'none';
-            ytFrame.style.display = 'none';
-            gameFrame.style.display = 'none';
-
-            art.switchUrl(url);
-            showToast(`PLAYING LOCAL FILE: ${file.name}`);
+            const file = event.target.files && event.target.files[0];
+            if (!file) return;
+            if (localObjectUrl) URL.revokeObjectURL(localObjectUrl);
+            localObjectUrl = URL.createObjectURL(file);
+            const kind = file.type.startsWith('audio/') ? 'audio' : 'video';
+            hideAllPlayers();
+            if (kind === 'audio') {
+                const audio = document.getElementById('audio-player'); audio.src = localObjectUrl; audio.style.display = 'block'; audio.load();
+                audio.play().catch(() => setPlayerStatus('Audio is ready. Press Play to start.'));
+            } else {
+                document.getElementById('player').style.display = 'block'; art.switchUrl(localObjectUrl);
+            }
+            setPlayerStatus(`${kind === 'audio' ? 'Audio' : 'Video'} file: ${file.name}`);
+            showToast(`OPENED LOCAL ${kind.toUpperCase()}: ${file.name}`);
+            event.target.value = '';
         }
 
         async function togglePiP() {
@@ -1338,16 +1462,18 @@
 
         function switchMirror() {
             const ch = CHANNELS[activeIdx];
-            if(ch.type !== 'cinema' || !ch.tmdbId) return showToast("SERVERS ONLY APPLICABLE TO CINEMA");
-            currentMirrorIdx = (currentMirrorIdx + 1) % MIRRORS.length;
-            document.getElementById('movie-frame').src = MIRRORS[currentMirrorIdx].build(ch.cType, ch.tmdbId);
-            showToast(`SWITCHED TO MIRROR: ${MIRRORS[currentMirrorIdx].name}`);
+            if (!ch || ch.type !== 'cinema' || !ch.tmdbId) return showToast('NO CATALOG SOURCE FOR THIS ITEM');
+            const kind = ch.cType === 'tv' ? 'tv' : 'movie';
+            const url = `https://www.themoviedb.org/${kind}/${encodeURIComponent(ch.tmdbId)}/watch`;
+            window.open(url, '_blank', 'noopener,noreferrer');
+            showToast('OPENED THE OFFICIAL TITLE PAGE TO FIND LEGAL WATCH OPTIONS');
         }
 
         function activateVIP() {
             const currentPass = localStorage.getItem('nebula_admin_pass');
-            const entered = prompt("Enter VIP Activation Key:");
-            if (entered === "LEE_TECH_VIP_2026" || (currentPass && entered === currentPass)) {
+            if (!currentPass) return showToast('SET A LOCAL ADMIN PASSWORD FIRST; THIS IS NOT SERVER ACCESS CONTROL');
+            const entered = prompt('Enter this browser’s local admin password to switch VIP appearance:');
+            if (currentPass && entered === currentPass) {
                 isVIP = true;
                 localStorage.setItem('nebula_vip_status', 'true');
                 document.body.classList.add('vip-mode');
@@ -1358,77 +1484,50 @@
             }
         }
 
-        // Automated Pre-Flight health check to verify embed connectivity
-        async function testAndPlaySource(iframeElement, fallbackUrl, finalSource) {
-            try {
-                const response = await fetch(fallbackUrl, { method: 'HEAD', mode: 'no-cors' });
-                iframeElement.src = fallbackUrl;
-            } catch (e) {
-                console.warn("Target server returned connection errors, loading auto fallback pipelines...");
-                iframeElement.src = finalSource;
-            }
-        }
-
         function switchSource(idx) {
             const ch = CHANNELS[idx];
-            if(ch.reqVip && !isVIP) return showToast("👑 VIP ACCESS REQUIRED");
-
+            if (!ch) return showToast('CHANNEL NOT FOUND');
+            if (ch.reqVip && !isVIP) return showToast('VIP ACCESS REQUIRED');
             activeIdx = idx;
-
-            if(ch.img) {
-                document.getElementById('dynamic-bg').style.backgroundImage = `url(${ch.img})`;
-            }
-
-            RECENT_WATCHED = RECENT_WATCHED.filter(item => item.name !== ch.name);
-            RECENT_WATCHED.unshift(ch);
-            if(RECENT_WATCHED.length > 6) RECENT_WATCHED.pop();
-            localStorage.setItem('nebula_recent', JSON.stringify(RECENT_WATCHED));
-
-            const playerEl = document.getElementById('player');
-            const movieFrame = document.getElementById('movie-frame');
-            const ytFrame = document.getElementById('yt-frame');
-            const gameFrame = document.getElementById('game-frame');
-
-            playerEl.style.display = 'none'; movieFrame.style.display = 'none'; ytFrame.style.display = 'none'; gameFrame.style.display = 'none';
-            art.pause(); movieFrame.src = ''; ytFrame.src = ''; gameFrame.src = '';
-
-            triggerLoader();
-
-            setTimeout(() => {
-                if(ch.type === 'youtube') {
-                    ytFrame.style.display = 'block';
-                    if (ch.channelId) {
-                        ytFrame.src = `https://www.youtube-nocookie.com/embed/live_stream?channel=${ch.channelId}&autoplay=1&rel=0&modestbranding=1`;
-                    } else if (ch.id) {
-                        ytFrame.src = `https://www.youtube-nocookie.com/embed/${ch.id}?autoplay=1&rel=0&modestbranding=1`;
-                    }
-                } else if(ch.type === 'cinema') {
-                    movieFrame.style.display = 'block';
-                    if (ch.tmdbId) {
-                        const targetUrl = MIRRORS[currentMirrorIdx].build(ch.cType, ch.tmdbId);
-                        const fallbackUrl = MIRRORS[(currentMirrorIdx + 1) % MIRRORS.length].build(ch.cType, ch.tmdbId);
-                        testAndPlaySource(movieFrame, targetUrl, fallbackUrl);
-                    }
-                    else if (ch.url) movieFrame.src = ch.url;
-                } else if(ch.type === 'game' || ch.type === 'iframe') {
-                    gameFrame.style.display = 'block';
-                    gameFrame.src = ch.url;
+            if (safeWebUrl(ch.img)) document.getElementById('dynamic-bg').style.backgroundImage = `url("${safeWebUrl(ch.img)}")`;
+            RECENT_WATCHED = RECENT_WATCHED.filter(item => item && item.name !== ch.name);
+            RECENT_WATCHED.unshift(ch); if (RECENT_WATCHED.length > 6) RECENT_WATCHED.pop();
+            try { localStorage.setItem('nebula_recent', JSON.stringify(RECENT_WATCHED)); } catch {}
+            hideAllPlayers(); triggerLoader();
+            let openedSource = true;
+            if (ch.type === 'youtube') {
+                const frame = document.getElementById('yt-frame');
+                if (ch.channelId) { frame.style.display = 'block'; frame.src = `https://www.youtube-nocookie.com/embed/live_stream?channel=${encodeURIComponent(ch.channelId)}&autoplay=1&rel=0&playsinline=1`; }
+                else if (ch.id) { frame.style.display = 'block'; frame.src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(ch.id)}?autoplay=1&rel=0&playsinline=1`; }
+                else if (safeWebUrl(ch.channelUrl)) { window.open(safeWebUrl(ch.channelUrl), '_blank', 'noopener,noreferrer'); setPlayerStatus(`Opened official YouTube channel: ${ch.name}`); }
+                else { setPlayerStatus('This YouTube item has no valid video or channel ID.'); openedSource = false; }
+                if (ch.id || ch.channelId) setPlayerStatus(`YouTube: ${ch.name}`);
+            } else if (ch.type === 'cinema') {
+                if (safeWebUrl(ch.url) && mediaKind(safeWebUrl(ch.url))) {
+                    playDirectMedia(ch.url, ch.name);
                 } else {
-                    playerEl.style.display = 'block';
-                    art.switchUrl(ch.url);
+                    setPlayerStatus(`Catalog metadata only: ${ch.name}. Add an authorized playback URL in Admin, or use OFFICIAL SOURCE to find licensed watch options.`);
+                    showToast('NO PLAYBACK URL — USE OFFICIAL SOURCE FOR WATCH OPTIONS'); openedSource = false;
                 }
-            }, 100);
-
-            renderChannels();
-            showToast(`PLAYING: ${ch.name}`);
+            } else if (ch.type === 'iframe' || ch.type === 'game') {
+                const frame = document.getElementById('game-frame'); const url = safeWebUrl(ch.url);
+                if (url) { frame.style.display = 'block'; frame.src = url; setPlayerStatus(`Embedded page: ${ch.name}`); }
+                else { setPlayerStatus('This item has no valid web address.'); openedSource = false; }
+            } else if (['audio','video','hls'].includes(ch.type) || mediaKind(ch.url)) {
+                openedSource = playDirectMedia(ch.url, ch.name);
+            } else {
+                setPlayerStatus('This item has no playable source URL. Add a supported direct media link.'); openedSource = false;
+            }
+            renderChannels(); if (openedSource) showToast(`PLAYING: ${ch.name}`);
         }
 
         function extractDownloadLink() {
             const ch = CHANNELS[activeIdx];
-            let targetUrl = ch.type === 'youtube' ? (ch.id ? `https://youtube.com/watch?v=${ch.id}` : `https://youtube.com/channel/${ch.channelId}/live`) : (ch.type === 'cinema' ? `https://vidsrc.net/embed/${ch.cType}?tmdb=${ch.tmdbId}` : ch.url);
-            if(!targetUrl) return showToast("COULD NOT FIND SECURE LINK");
-            showToast("INITIATING PREMIUM EXTRACTION...");
-            setTimeout(() => { window.open(`https://9xbuddy.com/process?url=${encodeURIComponent(targetUrl)}`, '_blank'); }, 1000);
+            const targetUrl = ch && (ch.type === 'youtube' ? (ch.id ? `https://www.youtube.com/watch?v=${encodeURIComponent(ch.id)}` : '') : ch.url);
+            const safeUrl = safeWebUrl(targetUrl);
+            if (!safeUrl) return showToast('NO DIRECT SOURCE URL FOR THIS ITEM');
+            window.open(safeUrl, '_blank', 'noopener,noreferrer');
+            showToast('OPENED SOURCE — USE ITS PERMITTED DOWNLOAD OPTIONS');
         }
 
         function setFilter(type, btnEl) {
@@ -1440,64 +1539,61 @@
 
         function renderChannels() {
             const list = document.getElementById('channel-list');
-            let displayedCount = 0;
-
             const sourceArray = currentFilter === 'recent' ? RECENT_WATCHED : CHANNELS;
-
-            const htmlString = sourceArray.map((ch, i) => {
-                if (currentFilter !== 'recent') {
-                    if(currentFilter === 'fav' && !ch.fav) return '';
-                    if(currentFilter !== 'all' && currentFilter !== 'fav' && ch.category !== currentFilter) return '';
-                }
-
+            const fragment = document.createDocumentFragment();
+            let displayedCount = 0;
+            sourceArray.forEach(ch => {
+                if (!ch || typeof ch !== 'object' || typeof ch.name !== 'string') return;
+                if (currentFilter !== 'recent' && currentFilter !== 'all' && currentFilter !== 'fav' && ch.category !== currentFilter) return;
+                if (currentFilter === 'fav' && !ch.fav) return;
                 displayedCount++;
-
-                const isWatched = ch.watched ? 'is-watched' : '';
-                const isActive = (currentFilter === 'recent' && CHANNELS[activeIdx].name === ch.name) || (currentFilter !== 'recent' && i === activeIdx) ? 'active' : '';
-                const isFav = ch.fav ? 'is-fav' : '';
-                const isLocked = (ch.reqVip && !isVIP) ? 'locked' : '';
-
-                const fallbackImg = `https://ui-avatars.com/api/?name=${encodeURIComponent(ch.name)}&background=222&color=ffd700&size=512&font-size=0.3`;
-                const imgSrc = ch.img || fallbackImg;
-
-                let badge = '';
-                if(ch.category === 'movie') badge = '🎬 MOVIE';
-                if(ch.category === 'tv') badge = '📺 SERIES';
-                if(ch.category === 'livetv' || ch.category === 'kenya') badge = '📡 LIVE';
-                if(ch.category === 'game') badge = '🎮 GAME';
-                if(ch.category === 'music') badge = '🎵 MUSIC';
-                if(ch.category === 'sports') badge = '⚽ SPORTS';
-
-                const realIdx = currentFilter === 'recent' ? CHANNELS.findIndex(item => item.name === ch.name) : i;
-
-                return `
-                    <div class="channel-card ${isActive} ${isWatched} ${isFav} ${isLocked}" onclick="openDetails(${realIdx})">
-                        <img src="${imgSrc}" loading="lazy" class="card-img" alt="${ch.name}" onerror="this.src='${fallbackImg}'">
-                        ${badge ? `<div class="ch-badge">${badge}</div>` : ''}
-                        <div class="card-info">
-                            <span class="ch-name">${ch.name}</span>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-
-            list.innerHTML = htmlString || `<div style="grid-column: 1/-1; text-align:center; padding: 50px; color:#555; font-family:'Orbitron';">NO ITEMS FOUND IN ${currentFilter.toUpperCase()}</div>`;
-            document.getElementById('ch-count').innerText = displayedCount;
+                const realIdx = CHANNELS.findIndex(item => item === ch || (item && item.name === ch.name && item.type === ch.type));
+                if (realIdx < 0) return; // Ignore stale recent-history entries removed from the library.
+                const card = document.createElement('button');
+                card.type = 'button'; card.className = `channel-card${ch.watched ? ' is-watched' : ''}${ch.fav ? ' is-fav' : ''}${ch.reqVip && !isVIP ? ' locked' : ''}${realIdx === activeIdx ? ' active' : ''}`;
+                card.setAttribute('aria-label', `${ch.name}${ch.category ? `, ${ch.category}` : ''}`);
+                card.addEventListener('click', () => openDetails(realIdx));
+                const fallbackImg = `https://ui-avatars.com/api/?name=${encodeURIComponent(ch.name || 'Media')}&background=222&color=ffd700&size=512`;
+                const img = document.createElement('img'); img.className = 'card-img'; img.loading = 'lazy'; img.alt = `${ch.name || 'Media'} artwork`; img.src = safeWebUrl(ch.img) || fallbackImg;
+                img.addEventListener('error', () => { img.src = fallbackImg; }, { once: true });
+                const badgeText = ({ movie:'🎬 MOVIE', tv:'📺 SERIES', livetv:'📡 LIVE', kenya:'📡 LIVE', game:'🎮 GAME', music:'🎵 MUSIC', audio:'🎧 AUDIO', video:'▶ VIDEO', hls:'📡 LIVE', sports:'⚽ SPORTS' })[ch.category] || '';
+                card.appendChild(img);
+                if (badgeText) { const badge = document.createElement('span'); badge.className = 'ch-badge'; badge.textContent = badgeText; card.appendChild(badge); }
+                const info = document.createElement('span'); info.className = 'card-info'; const name = document.createElement('span'); name.className = 'ch-name'; name.textContent = ch.name || 'Untitled'; info.appendChild(name); card.appendChild(info);
+                fragment.appendChild(card);
+            });
+            list.replaceChildren(fragment);
+            if (!displayedCount) { const empty = document.createElement('p'); empty.style.cssText = 'grid-column:1/-1;text-align:center;padding:50px;color:#777'; empty.textContent = `No items found in ${currentFilter}.`; list.appendChild(empty); }
+            document.getElementById('ch-count').textContent = String(displayedCount);
         }
 
-        function save() { localStorage.setItem('nebula_v44', JSON.stringify(CHANNELS)); }
+        function save() { try { localStorage.setItem('nebula_v44', JSON.stringify(CHANNELS)); } catch (error) { showToast('BROWSER STORAGE IS FULL OR DISABLED'); } }
 
         function clearCustom() {
             localStorage.removeItem('nebula_v44');
             localStorage.removeItem('nebula_recent');
             localStorage.removeItem('nebula_vip_status');
             localStorage.removeItem('nebula_admin_pass');
+            localStorage.removeItem('streamhd_tmdb_api_key');
             showToast("DATABASE RESETTING...");
             setTimeout(() => location.reload(), 1000);
         }
 
         function showToast(m) { const t=document.getElementById('toast'); t.innerText=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3000); }
 
+        document.getElementById('channel-list').addEventListener('keydown', event => {
+            const cards = [...document.querySelectorAll('#channel-list .channel-card')];
+            const current = cards.indexOf(document.activeElement);
+            if (current < 0) return;
+            let next = current;
+            const columns = Math.max(1, Math.floor(document.getElementById('channel-list').clientWidth / Math.max(110, cards[current].getBoundingClientRect().width + 15)));
+            if (event.key === 'ArrowRight') next = Math.min(cards.length - 1, current + 1);
+            else if (event.key === 'ArrowLeft') next = Math.max(0, current - 1);
+            else if (event.key === 'ArrowDown') next = Math.min(cards.length - 1, current + columns);
+            else if (event.key === 'ArrowUp') next = Math.max(0, current - columns);
+            else return;
+            event.preventDefault(); cards[next].focus();
+        });
         window.onload = () => {
             if(isVIP) {
                 document.body.classList.add('vip-mode');
