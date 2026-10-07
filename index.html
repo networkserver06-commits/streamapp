@@ -247,12 +247,29 @@
             box-shadow: 0 8px 25px rgba(255,215,0,0.4);
         }
 
-        #install-app-btn { 
-            display: none; 
+        #install-app-btn {
+            display: flex;
             border-color: #00ff41; 
             color: #00ff41; 
             font-weight: 900;
         }
+
+        #offline-banner {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 10px 16px;
+            text-align: center;
+            font: 700 .78rem 'Source Code Pro', monospace;
+            color: #fff;
+            background: #9b1c1c;
+            border-bottom: 2px solid #ff5a5a;
+        }
+        #offline-banner.online { background: #176b3a; border-color: #35e889; }
+        #offline-banner.show { display: block; }
 
         /* PASTE & PLAY SECTION */
         .paste-play-box {
@@ -800,6 +817,7 @@
     <div id="dynamic-bg"></div>
     <div id="bg-glow"></div>
     <div id="toast">SYSTEM READY</div>
+    <div id="offline-banner" role="status" aria-live="polite"></div>
 
     <div id="details-overlay" class="overlay-screen">
         <div class="details-modal" onclick="event.stopPropagation()">
@@ -988,14 +1006,43 @@
             document.getElementById('install-app-btn').style.display = 'flex';
         });
 
+        function updateNetworkStatus() {
+            const banner = document.getElementById('offline-banner');
+            if (!banner) return;
+            if (navigator.onLine) {
+                banner.textContent = 'ONLINE — STREAM HD SERVICES AVAILABLE';
+                banner.classList.add('online', 'show');
+                setTimeout(() => { if (navigator.onLine) banner.classList.remove('show'); }, 2200);
+            } else {
+                banner.textContent = 'OFFLINE — SAVED APP SHELL AND LOCAL MEDIA ARE AVAILABLE; ONLINE STREAMS AND SEARCH NEED INTERNET';
+                banner.classList.remove('online'); banner.classList.add('show');
+                showToast('OFFLINE MODE');
+            }
+        }
+        window.addEventListener('online', updateNetworkStatus);
+        window.addEventListener('offline', updateNetworkStatus);
+        updateNetworkStatus();
+
         function installApp() {
-            if (!deferredPrompt) return;
+            if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
+                showToast('STREAM HD IS ALREADY INSTALLED'); return;
+            }
+            if (!deferredPrompt) {
+                showToast(/iphone|ipad|ipod/i.test(navigator.userAgent) ? 'USE SHARE → ADD TO HOME SCREEN' : 'OPEN BROWSER MENU → INSTALL APP OR ADD TO HOME SCREEN');
+                return;
+            }
             deferredPrompt.prompt();
             deferredPrompt.userChoice.then((choiceResult) => {
                 if (choiceResult.outcome === 'accepted') document.getElementById('install-app-btn').style.display = 'none';
                 deferredPrompt = null;
             });
         }
+
+        window.addEventListener('appinstalled', () => {
+            deferredPrompt = null;
+            document.getElementById('install-app-btn').style.display = 'none';
+            showToast('STREAM HD INSTALLED');
+        });
 
         function updateClock() {
             const now = new Date();
