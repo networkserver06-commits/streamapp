@@ -1732,7 +1732,7 @@
             let displayedCount = 0;
             sourceArray.forEach(ch => {
                 if (!ch || typeof ch !== 'object' || typeof ch.name !== 'string') return;
-                if (currentFilter !== 'recent' && currentFilter !== 'all' && currentFilter !== 'fav' && ch.category !== currentFilter) return;
+                if (currentFilter !== 'recent' && currentFilter !== 'all' && currentFilter !== 'fav' && !(currentFilter === 'audio' && ch.category === 'music') && ch.category !== currentFilter) return;
                 if (currentFilter === 'fav' && !ch.fav) return;
                 displayedCount++;
                 const realIdx = CHANNELS.findIndex(item => item === ch || (item && item.name === ch.name && item.type === ch.type));
