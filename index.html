@@ -929,6 +929,7 @@
                 <div class="btn-grid">
                     <button class="btn btn-primary" onclick="openSearch('movie')">🎬 FIND MOVIE</button>
                     <button class="btn btn-primary" onclick="openSearch('tv')">📺 FIND SERIES</button>
+                    <button class="btn btn-primary" onclick="openSearch('music')">🎵 FIND MUSIC</button>
                     <button class="btn" style="border-color: #00f3ff; color: #00f3ff;" onclick="extractDownloadLink()">↗ OPEN SOURCE</button>
 
                     <button class="btn" style="border-color: #00ff41; color: #00ff41;" onclick="document.getElementById('local-video').click()">📂 PLAY LOCAL</button>
@@ -1029,6 +1030,16 @@
             }
             return response.json();
         }
+        async function jamendoFetch(params = {}) {
+            const url = new URL('/api/jamendo/tracks', window.location.origin);
+            url.search = new URLSearchParams({ limit: 24, audioformat: 'mp32', imagesize: 300, include: 'licenses', ...params }).toString();
+            const response = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
+            if (!response.ok) {
+                const body = await response.json().catch(() => ({}));
+                throw new Error(body.error || `JAMENDO_HTTP_${response.status}`);
+            }
+            return response.json();
+        }
         function safeWebUrl(value) {
             const raw = String(value || '').trim();
             if (!raw) return '';
@@ -1038,7 +1049,7 @@
         function mediaKind(url) {
             try {
                 const pathname = new URL(url).pathname.toLowerCase();
-                if (/\.(mp3|m4a|aac|wav|ogg|oga|opus|flac)$/.test(pathname)) return 'audio';
+                if (/\.(mp3|mp31|mp32|m4a|aac|wav|ogg|oga|opus|flac)$/.test(pathname)) return 'audio';
                 if (/\.(m3u8)$/.test(pathname)) return 'hls';
                 if (/\.(mp4|m4v|webm|mov|ogv|mkv)$/.test(pathname)) return 'video';
             } catch {}
@@ -1171,7 +1182,7 @@
             if (art) { try { art.pause(); } catch {} }
             ['movie-frame', 'yt-frame', 'game-frame'].forEach(id => { const el = document.getElementById(id); if (el) el.src = ''; });
         }
-        function playDirectMedia(rawUrl, title = 'Direct media') {
+        function playDirectMedia(rawUrl, title = 'Direct media', forcedKind = '') {
             const url = safeWebUrl(rawUrl);
             if (!url) { showToast('USE A VALID HTTP OR HTTPS MEDIA LINK'); return false; }
             const yt = youtubeTarget(url);
@@ -1191,7 +1202,7 @@
                 showToast('OPENING YOUTUBE PLAYLIST'); return true;
             }
             if (yt && (yt.channel || yt.channelPage)) return youtubeChannelFallback(title, yt.channel || '', yt.channelPage || '');
-            const kind = mediaKind(url);
+            const kind = forcedKind || mediaKind(url);
             if (kind === 'audio') {
                 const audio = document.getElementById('audio-player');
                 audio.src = url; audio.style.display = 'block'; audio.load();
@@ -1400,7 +1411,7 @@
         function openSearch(type) {
             searchMode = type;
             document.getElementById('search-input').value = '';
-            document.getElementById('search-head-title').innerText = type === 'movie' ? ' 🎬 SEARCH MOVIES' : '📺 SEARCH SERIES';
+            document.getElementById('search-head-title').innerText = type === 'movie' ? ' 🎬 SEARCH MOVIES' : type === 'tv' ? '📺 SEARCH SERIES' : '🎵 SEARCH MUSIC';
             document.getElementById('api-results').innerHTML = '';
             document.getElementById('search-status').innerText = 'LOADING TRENDING TODAY...';
             document.getElementById('search-overlay').style.display = 'flex';
@@ -1412,12 +1423,18 @@
         async function fetchTrending(type) {
             const resBox = document.getElementById('api-results');
             try {
+                if (type === 'music') {
+                    const data = await jamendoFetch({ featured: 'true', order: 'popularity_month_desc' });
+                    document.getElementById('search-status').innerText = '🎵 FEATURED JAMENDO MUSIC';
+                    renderJamendoResults(data.results || []);
+                    return;
+                }
                 const data = await tmdbFetch(`trending/${type}/day`);
                 if(data.results) {
                     document.getElementById('search-status').innerText = '🔥 TRENDING TODAY';
                     renderAPIResults(data.results, type);
                 }
-            } catch(e) { document.getElementById('search-status').innerText = e.message === 'TMDB_API_KEY_MISSING' ? 'TMDB is not configured. Add TMDB_API_KEY in Vercel Project Settings, then redeploy.' : 'Trending failed to load. Check the API key or try again.'; }
+            } catch(e) { document.getElementById('search-status').innerText = e.message === 'JAMENDO_CLIENT_ID_MISSING' ? 'Music is not configured. Add JAMENDO_CLIENT_ID in Vercel Project Settings, then redeploy.' : e.message === 'TMDB_API_KEY_MISSING' ? 'TMDB is not configured. Add TMDB_API_KEY in Vercel Project Settings, then redeploy.' : 'Trending failed to load. Check the API key or try again.'; }
         }
 
         function startVoiceSearch() {
@@ -1446,12 +1463,42 @@
             statusBox.innerText = "CONNECTING TO GLOBAL DATABASE...";
 
             try {
+                if (searchMode === 'music') {
+                    const data = await jamendoFetch({ search: query, order: 'relevance' });
+                    if (data.results && data.results.length > 0) {
+                        statusBox.innerText = `FOUND ${data.results.length} MUSIC TRACKS`;
+                        renderJamendoResults(data.results);
+                    } else statusBox.innerText = 'NO MUSIC FOUND.';
+                    return;
+                }
                 const data = await tmdbFetch(`search/${searchMode}`, { query });
                 if(data.results && data.results.length > 0) {
                     statusBox.innerText = `FOUND ${data.results.length} RESULTS`;
                     renderAPIResults(data.results, searchMode);
                 } else { statusBox.innerText = "NO RESULTS FOUND."; }
-            } catch (e) { statusBox.innerText = e.message === 'TMDB_API_KEY_MISSING' ? 'TMDB is not configured. Add TMDB_API_KEY in Vercel Project Settings, then redeploy.' : `API request failed (${e.message}). Check the key or network and retry.`; }
+            } catch (e) { statusBox.innerText = e.message === 'JAMENDO_CLIENT_ID_MISSING' ? 'Music is not configured. Add JAMENDO_CLIENT_ID in Vercel Project Settings, then redeploy.' : e.message === 'TMDB_API_KEY_MISSING' ? 'TMDB is not configured. Add TMDB_API_KEY in Vercel Project Settings, then redeploy.' : `API request failed (${e.message}). Check the key or network and retry.`; }
+        }
+
+        function renderJamendoResults(results) {
+            const resBox = document.getElementById('api-results');
+            resBox.replaceChildren();
+            results.filter(item => item && safeWebUrl(item.audio)).forEach(item => {
+                const title = String(item.name || 'Untitled track');
+                const artist = String(item.artist_name || 'Unknown artist');
+                const img = safeWebUrl(item.image || item.album_image) || `https://ui-avatars.com/api/?name=${encodeURIComponent(title)}&background=222&color=ffd700&size=512`;
+                const card = document.createElement('button');
+                card.type = 'button'; card.className = 'api-card'; card.setAttribute('aria-label', `Play ${title} by ${artist}`);
+                const image = document.createElement('img'); image.src = img; image.alt = `${title} artwork`; image.loading = 'lazy'; image.style.cssText = 'width:100%;height:100%;object-fit:cover';
+                const caption = document.createElement('span'); caption.textContent = `${title} — ${artist}`;
+                caption.style.cssText = 'position:absolute;bottom:0;width:100%;background:rgba(0,0,0,.9);padding:15px 10px;font-size:.8rem;font-weight:bold;text-align:left;color:#fff';
+                card.append(image, caption);
+                card.addEventListener('click', () => {
+                    const entry = { name: title.toUpperCase(), artist, type: 'audio', category: 'music', url: safeWebUrl(item.audio), img, shareurl: safeWebUrl(item.shareurl), license: item.license_ccurl || '', watched: false, fav: false, reqVip: false };
+                    CHANNELS.unshift(entry); save(); closeSearch(); switchSource(0);
+                });
+                resBox.appendChild(card);
+            });
+            if (!resBox.children.length) resBox.innerHTML = '<p style="padding:30px;color:#777">No playable Jamendo tracks found.</p>';
         }
 
         function renderAPIResults(results, type) {
@@ -1578,7 +1625,8 @@
                 if (url) { frame.style.display = 'block'; frame.src = url; setPlayerStatus(`Embedded page: ${ch.name}`); }
                 else { setPlayerStatus('This item has no valid web address.'); openedSource = false; }
             } else if (['audio','video','hls'].includes(ch.type) || mediaKind(ch.url)) {
-                openedSource = playDirectMedia(ch.url, ch.name);
+                openedSource = playDirectMedia(ch.url, ch.name, ch.type === 'audio' ? 'audio' : '');
+                if (openedSource && ch.type === 'audio' && ch.shareurl) setPlayerStatus(`Now playing: ${ch.name}${ch.artist ? ` — ${ch.artist}` : ''}`, [{ label: 'VIEW ON JAMENDO', href: ch.shareurl }]);
             } else {
                 setPlayerStatus('This item has no playable source URL. Add a supported direct media link.'); openedSource = false;
             }

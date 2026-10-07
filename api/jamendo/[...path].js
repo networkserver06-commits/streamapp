@@ -1,0 +1,38 @@
+const ALLOWED_PATH = /^tracks$/;
+
+module.exports = async function handler(req, res) {
+  if (req.method !== 'GET') {
+    res.setHeader('Allow', 'GET');
+    return res.status(405).json({ error: 'METHOD_NOT_ALLOWED' });
+  }
+
+  const pathParts = Array.isArray(req.query.path) ? req.query.path : [req.query.path];
+  const path = pathParts.filter(Boolean).join('/');
+  if (!ALLOWED_PATH.test(path)) return res.status(400).json({ error: 'INVALID_JAMENDO_PATH' });
+
+  const clientId = process.env.JAMENDO_CLIENT_ID;
+  if (!clientId) return res.status(500).json({ error: 'JAMENDO_CLIENT_ID_MISSING' });
+
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(req.query)) {
+    if (key === 'path') continue;
+    for (const item of Array.isArray(value) ? value : [value]) {
+      if (item !== undefined && item !== null) params.append(key, String(item));
+    }
+  }
+  params.set('client_id', clientId);
+  params.set('format', 'json');
+
+  try {
+    const response = await fetch(`https://api.jamendo.com/v3.0/${path}?${params}`, {
+      headers: { Accept: 'application/json' }
+    });
+    const body = await response.text();
+    res.setHeader('Content-Type', response.headers.get('content-type') || 'application/json');
+    res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
+    return res.status(response.status).send(body);
+  } catch (error) {
+    console.error('Jamendo proxy request failed', error);
+    return res.status(502).json({ error: 'JAMENDO_UPSTREAM_UNAVAILABLE' });
+  }
+};

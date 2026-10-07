@@ -20,6 +20,10 @@ In Vercel, open **Project Settings → Environment Variables**, add `TMDB_API_KE
 
 The TMDB key previously embedded in the public source should be revoked/rotated before deployment.
 
+## Jamendo music setup
+
+Create an application in the [Jamendo developer portal](https://devportal.jamendo.com/), then add its Client ID to Vercel as `JAMENDO_CLIENT_ID` for Production and Preview. Redeploy after saving it. **Find Music** searches Jamendo automatically and plays the returned stream URL in the built-in audio player; each result includes artist attribution and a link back to Jamendo. Use the API only within Jamendo's license terms and request limits.
+
 ## Add media and TV
 
 Use **Admin** to add YouTube videos, playlists, channels, or direct audio/video/HLS URLs. Videos and playlists play in the embedded player when YouTube permits embedding; a **Watch on YouTube** fallback is available for restricted videos. A channel ID is not itself a video, and its live embed fails when no broadcast is active, so channel entries show official **Watch Live** and **Browse Channel Videos** links instead. Direct source URLs must be absolute HTTP(S) links and work only when supported by the browser, the stream's codecs, and its CORS policy. For catalog items, add the TMDB ID; playback is available only when an authorized direct playback URL is supplied. Otherwise, use **Official Source** to discover licensed watch options.
