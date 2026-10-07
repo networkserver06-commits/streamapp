@@ -829,6 +829,10 @@
                 <div id="det-meta" class="details-meta">2026 | ⭐ 8.5/10</div>
                 <div id="det-desc" class="details-desc">Loading description...</div>
                 <div id="det-cast" class="details-meta" style="margin-top:10px;color:#aaa;">Cast: Loading...</div>
+                <div id="tv-episode-picker" hidden style="display:flex;gap:8px;flex-wrap:wrap;margin:14px 0;">
+                    <label style="color:#aaa;font-size:.78rem;">Season <select id="tv-season-select" class="paste-input"></select></label>
+                    <label style="color:#aaa;font-size:.78rem;">Episode <select id="tv-episode-select" class="paste-input"></select></label>
+                </div>
                 <div id="provider-panel" style="margin:18px 0;padding:14px;border:1px solid rgba(255,215,0,.35);border-radius:12px;background:rgba(0,0,0,.28);">
                     <div id="provider-heading" style="font-family:'Orbitron';color:var(--primary);font-size:.78rem;letter-spacing:1px;margin-bottom:8px;">LEGAL WATCH OPTIONS</div>
                     <div id="provider-list" style="font-size:.8rem;color:#aaa;">Loading official providers...</div>
@@ -900,6 +904,12 @@
                 <input type="password" id="tmdb-api-key-input" autocomplete="off" placeholder="Paste your own TMDB API key">
                 <button class="btn" style="margin-top:8px;width:100%;" onclick="saveTmdbKey()">SAVE TMDB KEY</button>
             </div>
+            <div class="admin-group">
+                <label>APPROVED PLAYER TEMPLATE (OPTIONAL)</label>
+                <input type="url" id="player-template-input" autocomplete="off" placeholder="https://player.vimeo.com/video/{tmdb_id}">
+                <small style="display:block;color:#888;margin-top:6px;line-height:1.4;">Allowed hosts: YouTube, Internet Archive, Vimeo. Placeholders: {tmdb_id}, {type}, {season}, {episode}, {youtube_key}, {archive_id}, {authorized_url}.</small>
+                <button class="btn" style="margin-top:8px;width:100%;" onclick="savePlayerTemplate()">SAVE PLAYER TEMPLATE</button>
+            </div>
             <div style="display: flex; gap: 10px; margin-top: 30px;">
                 <button class="btn btn-primary" style="flex:1;" onclick="adminSaveContent()">💾 ADD</button>
                 <button class="btn" style="flex:1; border-color: #00f3ff; color: #00f3ff;" onclick="exportDB()">📥 EXPORT DB</button>
@@ -934,6 +944,7 @@
                 <div id="player"></div>
                 <audio id="audio-player" controls playsinline preload="metadata" aria-label="Audio player"></audio>
                 <div id="player-status" class="player-status" role="status" aria-live="polite">Choose a channel or paste a supported media link.</div>
+                <div id="player-source-switcher" aria-label="Server or source selector" style="display:none;gap:8px;flex-wrap:wrap;justify-content:center;margin:10px 0;"></div>
                 <iframe id="movie-frame" referrerpolicy="no-referrer" allow="autoplay; encrypted-media; fullscreen" allowfullscreen frameborder="0"></iframe>
                 <iframe id="yt-frame" allow="autoplay; encrypted-media; fullscreen" allowfullscreen frameborder="0"></iframe>
                 <iframe id="game-frame" allowfullscreen></iframe>
@@ -1062,6 +1073,68 @@
         let art, activeIdx = 0;
         let currentFilter = 'all';
         let searchMode = 'movie';
+        const DEFAULT_PLAYER_SOURCES = [
+            { id: 'youtube', label: 'Official YouTube', template: 'https://www.youtube-nocookie.com/embed/{youtube_key}?autoplay=1&rel=0&playsinline=1', variable: 'youtube_key' },
+            { id: 'archive', label: 'Internet Archive', template: 'https://archive.org/embed/{archive_id}', variable: 'archive_id' },
+            { id: 'authorized', label: 'Authorized media', template: '{authorized_url}', variable: 'authorized_url' }
+        ];
+        let activePlayerContext = {};
+        function playerConfig() {
+            const runtime = window.STREAMHD_PLAYER_CONFIG && typeof window.STREAMHD_PLAYER_CONFIG === 'object' ? window.STREAMHD_PLAYER_CONFIG : {};
+            const saved = readJsonStorage('streamhd_player_sources', null);
+            const custom = Array.isArray(runtime.sources) ? runtime.sources : Array.isArray(saved) ? saved : [];
+            const savedTemplate = localStorage.getItem('streamhd_player_template');
+            const customTemplate = savedTemplate ? [{ id: 'custom', label: 'Custom approved source', template: savedTemplate }] : [];
+            const primary = runtime.primaryTemplate ? [{ id: 'runtime-primary', label: 'Runtime primary', template: runtime.primaryTemplate }] : [];
+            return [...(primary.length ? primary : custom.length ? custom : DEFAULT_PLAYER_SOURCES), ...customTemplate];
+        }
+        function savePlayerTemplate() {
+            const input = document.getElementById('player-template-input');
+            const template = String(input && input.value || '').trim();
+            const sample = expandPlayerTemplate(template, { tmdb_id: '123', type: 'movie', season: '1', episode: '1', youtube_key: 'sample', archive_id: 'sample', authorized_url: 'https://example.com/video.mp4' });
+            if (!template || !sample || !allowedPlayerHost(sample)) return showToast('USE AN APPROVED YOUTUBE, ARCHIVE, OR VIMEO TEMPLATE');
+            localStorage.setItem('streamhd_player_template', template);
+            renderPlayerSources(activePlayerContext);
+            showToast('APPROVED PLAYER TEMPLATE SAVED');
+        }
+        function expandPlayerTemplate(template, context = {}) {
+            let output = String(template || '').replace(/\{(tmdb_id|type|season|episode|youtube_key|archive_id|authorized_url)\}/g, (_, key) => encodeURIComponent(String(context[key] ?? '')));
+            if (!output || /\{(?:tmdb_id|type|season|episode|youtube_key|archive_id|authorized_url)\}/.test(output)) return '';
+            return safeWebUrl(output);
+        }
+        function allowedPlayerHost(url) {
+            try {
+                const host = new URL(url).hostname.toLowerCase().replace(/^www\./, '');
+                return host === 'youtube.com' || host.endsWith('.youtube.com') || host === 'youtube-nocookie.com' || host === 'archive.org' || host.endsWith('.archive.org') || host === 'vimeo.com' || host === 'player.vimeo.com';
+            } catch { return false; }
+        }
+        function renderPlayerSources(context = activePlayerContext) {
+            const box = document.getElementById('player-source-switcher');
+            if (!box) return;
+            box.replaceChildren();
+            const sources = playerConfig().map((source, index) => ({ ...source, index, url: expandPlayerTemplate(source.template, context) })).filter(source => source.url && allowedPlayerHost(source.url));
+            box.style.display = sources.length > 1 ? 'flex' : 'none';
+            sources.forEach(source => {
+                const button = document.createElement('button'); button.type = 'button'; button.className = 'btn'; button.textContent = `${source.label || `SOURCE ${source.index + 1}`}`;
+                button.style.cssText = 'padding:8px 12px;font-size:.7rem;border-color:#00f3ff;color:#00f3ff';
+                button.onclick = () => playConfiguredSource(source, context);
+                box.appendChild(button);
+            });
+            return sources;
+        }
+        function playConfiguredSource(source, context = activePlayerContext) {
+            const url = source && (source.url || expandPlayerTemplate(source.template, context));
+            if (!url || !allowedPlayerHost(url)) return showToast('SOURCE IS NOT AN APPROVED EMBED HOST');
+            activePlayerContext = { ...context };
+            hideAllPlayers(); triggerLoader();
+            if (source.id === 'archive' || new URL(url).hostname.includes('archive.org')) {
+                const frame = document.getElementById('movie-frame'); frame.style.display = 'block'; frame.src = url;
+            } else {
+                const frame = document.getElementById('yt-frame'); frame.style.display = 'block'; frame.src = url;
+            }
+            setPlayerStatus(`Playing ${source.label || 'selected source'}${context.title ? `: ${context.title}` : ''}${context.season ? ` — S${context.season} E${context.episode}` : ''}`);
+            renderPlayerSources(context);
+        }
         let isVIP = localStorage.getItem('nebula_vip_status') === 'true';
         function readJsonStorage(key, fallback) {
             try { const value = JSON.parse(localStorage.getItem(key)); return value ?? fallback; }
@@ -1557,6 +1630,9 @@
             document.getElementById('det-meta').innerText = "Loading data...";
             document.getElementById('det-desc').innerText = "Connecting to global database...";
             document.getElementById('det-cast').innerText = 'Cast: Loading...';
+            document.getElementById('tv-episode-picker').hidden = ch.cType !== 'tv';
+            document.getElementById('tv-episode-picker').style.display = ch.cType === 'tv' ? 'flex' : 'none';
+            document.querySelector('.details-modal').style.backgroundImage = '';
             document.getElementById('provider-list').innerText = 'Loading official providers...';
             const fullPlayButton = document.getElementById('det-play-btn');
             if (fullPlayButton) {
@@ -1573,15 +1649,59 @@
                 if(data.id) {
                     const year = (ch.cType === 'tv' ? data.first_air_date : data.release_date) || "N/A";
                     const rating = data.vote_average ? data.vote_average.toFixed(1) : "N/A";
-                    document.getElementById('det-meta').innerText = `${year.split('-')[0]} | ⭐ ${rating}/10 | ${ch.cType.toUpperCase()}`;
+                    const genres = Array.isArray(data.genres) ? data.genres.slice(0, 3).map(genre => genre.name).join(', ') : '';
+                    document.getElementById('det-meta').innerText = `${year.split('-')[0]} | ⭐ ${rating}/10 | ${ch.cType.toUpperCase()}${genres ? ` | ${genres}` : ''}`;
                     document.getElementById('det-desc').innerText = data.overview || "No description available.";
                     const cast = Array.isArray(data.credits && data.credits.cast) ? data.credits.cast.slice(0, 8).map(person => person.name).filter(Boolean) : [];
                     document.getElementById('det-cast').innerText = cast.length ? `Cast: ${cast.join(', ')}` : 'Cast: Not available';
+                    if (data.backdrop_path) document.querySelector('.details-modal').style.backgroundImage = `linear-gradient(rgba(7,7,7,.78),rgba(7,7,7,.96)),url(https://image.tmdb.org/t/p/w1280${data.backdrop_path})`;
+                    activePlayerContext = { tmdb_id: ch.tmdbId, type: ch.cType, title: ch.name };
+                    if (ch.cType === 'tv') setupTvPicker(ch, data.seasons || []);
                 }
             } catch (e) {
                 document.getElementById('det-cast').innerText = 'Cast: Metadata unavailable';
                 document.getElementById('det-desc').innerText = e.message === 'TMDB_CREDENTIALS_MISSING' || e.message === 'TMDB_API_KEY_MISSING' ? 'TMDB metadata is disabled until the site owner configures TMDB_ACCESS_TOKEN or TMDB_API_KEY.' : 'TMDB could not load this title. Check the TMDB configuration or network.';
             }
+        }
+
+        function setupTvPicker(ch, seasons) {
+            const picker = document.getElementById('tv-episode-picker');
+            const seasonSelect = document.getElementById('tv-season-select');
+            if (!picker || !seasonSelect) return;
+            picker.hidden = false; seasonSelect.replaceChildren();
+            seasons.filter(season => Number(season.season_number) > 0).forEach(season => {
+                const option = document.createElement('option'); option.value = season.season_number; option.textContent = `Season ${season.season_number}`; seasonSelect.appendChild(option);
+            });
+            const loadFirstSeason = () => loadTvEpisodes(ch, Number(seasonSelect.value || 1));
+            seasonSelect.onchange = loadFirstSeason;
+            loadFirstSeason();
+        }
+
+        async function loadTvEpisodes(ch, seasonNumber) {
+            const episodeSelect = document.getElementById('tv-episode-select');
+            if (!episodeSelect) return;
+            episodeSelect.replaceChildren();
+            try {
+                const data = await tmdbFetch(`tv/${encodeURIComponent(ch.tmdbId)}/season/${encodeURIComponent(seasonNumber)}`);
+                (data.episodes || []).forEach(episode => { const option = document.createElement('option'); option.value = episode.episode_number; option.textContent = `Episode ${episode.episode_number}: ${episode.name || 'Untitled'}`; episodeSelect.appendChild(option); });
+                const playSelection = () => playTvEpisode(ch, seasonNumber, Number(episodeSelect.value || 1));
+                episodeSelect.onchange = playSelection;
+                if (episodeSelect.options.length) playSelection();
+            } catch { setPlayerStatus(`Season ${seasonNumber} episodes could not be loaded from TMDB.`); }
+        }
+
+        async function playTvEpisode(ch, seasonNumber, episodeNumber) {
+            activePlayerContext = { tmdb_id: ch.tmdbId, type: 'tv', season: seasonNumber, episode: episodeNumber, title: ch.name };
+            renderPlayerSources(activePlayerContext);
+            try {
+                const data = await tmdbFetch(`tv/${encodeURIComponent(ch.tmdbId)}/season/${encodeURIComponent(seasonNumber)}/episode/${encodeURIComponent(episodeNumber)}/videos`);
+                const video = (data.results || []).find(item => item.site === 'YouTube' && (item.type === 'Trailer' || item.type === 'Clip'));
+                if (video && video.key) {
+                    const template = 'https://www.youtube-nocookie.com/embed/{youtube_key}?autoplay=1&rel=0&playsinline=1';
+                    const context = { ...activePlayerContext, youtube_key: video.key };
+                    playConfiguredSource({ id: 'youtube', label: 'Official YouTube Episode Clip', template, url: expandPlayerTemplate(template, context) }, context);
+                } else setPlayerStatus(`Selected ${ch.name} — Season ${seasonNumber}, Episode ${episodeNumber}. No official YouTube clip is listed.`);
+            } catch { setPlayerStatus(`Selected ${ch.name} — Season ${seasonNumber}, Episode ${episodeNumber}. Episode video metadata is unavailable.`); }
         }
 
         function playCurrentDetails() {
@@ -1603,7 +1723,9 @@
                 if(data.results && data.results.length > 0) {
                     const trailer = data.results.find(v => v.type === "Trailer") || data.results[0];
                     closeOverlay('details-overlay');
-                    playDirectMedia(`https://www.youtube.com/watch?v=${encodeURIComponent(trailer.key)}`, `${ch.name} trailer`);
+                    const context = { ...activePlayerContext, tmdb_id: ch.tmdbId, type: ch.cType, title: `${ch.name} trailer`, youtube_key: trailer.key };
+                    const template = 'https://www.youtube-nocookie.com/embed/{youtube_key}?autoplay=1&rel=0&playsinline=1';
+                    playConfiguredSource({ id: 'youtube', label: 'Official YouTube Trailer', template, url: expandPlayerTemplate(template, context) }, context);
                 } else { showToast("TRAILER NOT FOUND"); }
             } catch(e) { showToast("ERROR FETCHING TRAILER"); }
         }
