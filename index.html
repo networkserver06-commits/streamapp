@@ -148,6 +148,7 @@
             position: relative; 
             width: 100%; 
             aspect-ratio: 16/9; 
+            min-height: 220px;
             background: #000; 
             border-radius: 16px; 
             overflow: hidden; 
@@ -163,6 +164,8 @@
         }
         #audio-player { width: min(88%, 760px); height: 72px; margin: auto; align-self: center; }
         .player-status { position:absolute; z-index:15; bottom:10px; left:10px; right:10px; color:#eee; font:600 .78rem 'Source Code Pro', monospace; text-align:center; pointer-events:auto; background:rgba(0,0,0,.78); border:1px solid rgba(255,215,0,.22); border-radius:10px; padding:8px; }
+        .source-switcher { display:none; gap:8px; flex-wrap:wrap; justify-content:center; width:100%; margin:10px 0 0; }
+        .source-switcher .btn { min-height:38px; padding:8px 12px; font-size:.7rem; }
         .player-action { display:inline-flex; align-items:center; justify-content:center; min-height:36px; margin:6px 4px 0; padding:7px 12px; border:1px solid var(--primary); border-radius:8px; color:var(--primary); text-decoration:none; font:700 .72rem 'Orbitron',sans-serif; }
         .player-action:hover, .player-action:focus-visible { background:var(--primary); color:#000; outline:2px solid #fff; outline-offset:2px; }
         .channel-card:focus-visible, .btn:focus-visible, .filter-btn:focus-visible, .api-card:focus-visible, input:focus-visible, select:focus-visible { outline:3px solid var(--primary); outline-offset:3px; }
@@ -951,11 +954,11 @@
                 <div id="player"></div>
                 <audio id="audio-player" controls playsinline preload="metadata" aria-label="Audio player"></audio>
                 <div id="player-status" class="player-status" role="status" aria-live="polite">Choose a channel or paste a supported media link.</div>
-                <div id="player-source-switcher" aria-label="Server or source selector" style="display:none;gap:8px;flex-wrap:wrap;justify-content:center;margin:10px 0;"></div>
                 <iframe id="movie-frame" referrerpolicy="no-referrer" allow="autoplay; encrypted-media; fullscreen" allowfullscreen frameborder="0"></iframe>
                 <iframe id="yt-frame" referrerpolicy="strict-origin-when-cross-origin" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen frameborder="0"></iframe>
                 <iframe id="game-frame" allowfullscreen></iframe>
             </div>
+            <div id="player-source-switcher" class="source-switcher" aria-label="Server or source selector"></div>
 
             <!-- PASTE & PLAY PANEL -->
             <div class="paste-play-box">
@@ -1173,7 +1176,7 @@
             } else {
                 const frame = document.getElementById('yt-frame'); frame.style.display = 'block'; frame.src = url;
             }
-            setPlayerStatus(`Playing ${source.label || 'selected source'}${context.title ? `: ${context.title}` : ''}${context.season ? ` — S${context.season} E${context.episode}` : ''}`);
+            setPlayerStatus(`Playing ${source.label || 'selected source'}`);
             renderPlayerSources(context);
         }
         let isVIP = localStorage.getItem('nebula_vip_status') === 'true';
@@ -1367,7 +1370,7 @@
         }
         function youtubeChannelFallback(title, channelId, channelUrl) {
             const actions = youtubeChannelLinks(channelId, channelUrl);
-            setPlayerStatus(`${title}: official broadcaster feed is loading. If no live programme is scheduled, the channel remains available when its next broadcast starts.`, actions);
+            setPlayerStatus('Official broadcaster feed is loading. If no live programme is scheduled, it will resume when the next broadcast starts.', actions);
             showToast('OFFICIAL CHANNEL FEED LOADING');
             return false;
         }
@@ -1407,13 +1410,13 @@
                 const frame = document.getElementById('yt-frame');
                 frame.style.display = 'block';
                 frame.src = youtubeEmbedUrl(encodeURIComponent(yt.id));
-                setPlayerStatus(`Playing: ${title}`);
+                setPlayerStatus('Playing');
                 showToast('OPENING VIDEO'); return true;
             }
             if (yt && yt.playlist) {
                 const frame = document.getElementById('yt-frame'); frame.style.display = 'block';
                 frame.src = youtubeEmbedUrl('videoseries', { list: yt.playlist });
-                setPlayerStatus(`Playing playlist: ${title}`);
+                setPlayerStatus('Playing playlist');
                 showToast('OPENING PLAYLIST'); return true;
             }
             if (yt && (yt.channel || yt.channelPage)) return youtubeChannelFallback(title, yt.channel || '', yt.channelPage || '');
@@ -1423,12 +1426,12 @@
                 audio.src = url; audio.style.display = 'block'; audio.load();
                 if ('mediaSession' in navigator && 'MediaMetadata' in window) navigator.mediaSession.metadata = new MediaMetadata({ title: String(title), artist: 'Stream HD' });
                 audio.play().catch(() => setPlayerStatus('Audio is ready. Press Play to start (autoplay may be blocked).'));
-                setPlayerStatus(`Audio: ${title}`); return true;
+                setPlayerStatus('Audio playing'); return true;
             }
             if (kind === 'video' || kind === 'hls') {
                 document.getElementById('player').style.display = 'block';
                 art.switchUrl(url, kind === 'hls' ? 'm3u8' : undefined);
-                setPlayerStatus(`${kind === 'hls' ? 'Live / HLS' : 'Video'}: ${title}`); return true;
+                setPlayerStatus(kind === 'hls' ? 'Live / HLS playing' : 'Video playing'); return true;
             }
             setPlayerStatus('Unsupported media link.');
             showToast('UNSUPPORTED MEDIA LINK'); return false;
@@ -1884,7 +1887,7 @@
             hideAllPlayers(); triggerLoader();
             const frame = document.getElementById('movie-frame');
             frame.style.display = 'block'; frame.src = `https://archive.org/embed/${encodeURIComponent(identifier)}`;
-            setPlayerStatus(`Playing Internet Archive film: ${title}`);
+            setPlayerStatus('Playing Internet Archive film');
             showToast('OPENING ARCHIVE FILM');
         }
 
@@ -2034,7 +2037,7 @@
             } else {
                 document.getElementById('player').style.display = 'block'; art.switchUrl(localObjectUrl);
             }
-            setPlayerStatus(`${kind === 'audio' ? 'Audio' : 'Video'} file: ${file.name}`);
+            setPlayerStatus(kind === 'audio' ? 'Audio file playing' : 'Video file playing');
             showToast(`OPENED LOCAL ${kind.toUpperCase()}: ${file.name}`);
             event.target.value = '';
         }
@@ -2087,14 +2090,14 @@
                 if (ch.liveVideoId) {
                     frame.style.display = 'block';
                     frame.src = youtubeEmbedUrl(encodeURIComponent(ch.liveVideoId));
-                    setPlayerStatus(`Playing official live broadcast: ${ch.name}`);
+                    setPlayerStatus('Playing official live broadcast');
                     showToast('OPENING OFFICIAL LIVE BROADCAST');
                 } else if (ch.channelId) {
                     const embedUrl = youtubeChannelEmbedUrl(ch.channelId);
                     if (embedUrl) {
                         frame.style.display = 'block';
                         frame.src = embedUrl;
-                        setPlayerStatus(`Playing live channel: ${ch.name}`);
+                        setPlayerStatus('Playing live channel');
                         showToast('OPENING LIVE CHANNEL');
                     } else {
                         openedSource = youtubeChannelFallback(ch.name, '', ch.channelUrl || '');
@@ -2103,10 +2106,10 @@
                     openedSource = youtubeChannelFallback(ch.name, '', ch.channelUrl || '');
                 } else if (ch.playlistId) {
                     frame.style.display = 'block'; frame.src = youtubeEmbedUrl('videoseries', { list: ch.playlistId });
-                    setPlayerStatus(`Playing playlist: ${ch.name}`);
+                    setPlayerStatus('Playing playlist');
                 } else if (ch.id) {
                     frame.style.display = 'block'; frame.src = youtubeEmbedUrl(encodeURIComponent(ch.id));
-                    setPlayerStatus(`Playing: ${ch.name}`);
+                    setPlayerStatus('Playing');
                 } else { setPlayerStatus('This item has no valid playable source.'); openedSource = false; }
             } else if (ch.type === 'cinema') {
                 if (hasCatalogPlayback(ch)) {
@@ -2117,11 +2120,11 @@
                 }
             } else if (ch.type === 'iframe' || ch.type === 'game') {
                 const frame = document.getElementById('game-frame'); const url = safeWebUrl(ch.url);
-                if (url) { frame.style.display = 'block'; frame.src = url; setPlayerStatus(`Embedded page: ${ch.name}`); }
+                if (url) { frame.style.display = 'block'; frame.src = url; setPlayerStatus('Embedded page playing'); }
                 else { setPlayerStatus('This item has no valid web address.'); openedSource = false; }
             } else if (['audio','video','hls'].includes(ch.type) || mediaKind(ch.url)) {
                 openedSource = playDirectMedia(ch.url, ch.name, ch.type === 'audio' ? 'audio' : '');
-                if (openedSource && ch.type === 'audio') setPlayerStatus(`Now playing: ${ch.name}${ch.artist ? ` — ${ch.artist}` : ''}`);
+                if (openedSource && ch.type === 'audio') setPlayerStatus('Audio playing');
             } else {
                 setPlayerStatus('This item has no playable source URL. Add a supported direct media link.'); openedSource = false;
             }
