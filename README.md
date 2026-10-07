@@ -55,6 +55,16 @@ Example runtime configuration, loaded before the app script:
 </script>
 ```
 
+For Vercel, these variables are also supported through the serverless configuration endpoint. Add them under **Project Settings → Environment Variables**:
+
+```text
+NEXT_PUBLIC_PLAYER_GATEWAY_URL=https://www.youtube-nocookie.com/embed/{youtube_key}?autoplay=1&rel=0&playsinline=1
+NEXT_PUBLIC_SERVER_2_URL=https://archive.org/embed/{archive_id}
+NEXT_PUBLIC_SERVER_3_URL=https://player.vimeo.com/video/{tmdb_id}
+```
+
+An empty value is allowed. After saving or changing the variables, redeploy the project. The app requests `/api/player-config` at startup, and only approved YouTube, Internet Archive, Vimeo, or authorized direct-media hosts are accepted. These values are URLs, not secrets; do not place API keys in them.
+
 Common audio formats include MP3, M4A, AAC, WAV, OGG, OPUS, and FLAC. Common video formats include MP4, WebM, MOV, and HLS; actual support varies by device. DRM playback and MPEG-DASH are not implemented.
 
 ## Access-control note

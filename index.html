@@ -1082,11 +1082,27 @@
         function playerConfig() {
             const runtime = window.STREAMHD_PLAYER_CONFIG && typeof window.STREAMHD_PLAYER_CONFIG === 'object' ? window.STREAMHD_PLAYER_CONFIG : {};
             const saved = readJsonStorage('streamhd_player_sources', null);
-            const custom = Array.isArray(runtime.sources) ? runtime.sources : Array.isArray(saved) ? saved : [];
+            const custom = Array.isArray(runtime.sources) && runtime.sources.length ? runtime.sources : Array.isArray(saved) ? saved : [];
             const savedTemplate = localStorage.getItem('streamhd_player_template');
             const customTemplate = savedTemplate ? [{ id: 'custom', label: 'Custom approved source', template: savedTemplate }] : [];
             const primary = runtime.primaryTemplate ? [{ id: 'runtime-primary', label: 'Runtime primary', template: runtime.primaryTemplate }] : [];
-            return [...(primary.length ? primary : custom.length ? custom : DEFAULT_PLAYER_SOURCES), ...customTemplate];
+            return [...(custom.length ? custom : primary.length ? primary : DEFAULT_PLAYER_SOURCES), ...customTemplate];
+        }
+        async function loadVercelPlayerConfig() {
+            try {
+                const response = await fetch('/api/player-config', { cache: 'no-store' });
+                if (!response.ok) return;
+                const config = await response.json();
+                if (!config || (!config.primaryTemplate && !Array.isArray(config.sources))) return;
+                const current = window.STREAMHD_PLAYER_CONFIG && typeof window.STREAMHD_PLAYER_CONFIG === 'object' ? window.STREAMHD_PLAYER_CONFIG : {};
+                window.STREAMHD_PLAYER_CONFIG = {
+                    ...current,
+                    ...(config.primaryTemplate ? { primaryTemplate: config.primaryTemplate } : {}),
+                    ...(Array.isArray(config.sources) && config.sources.length ? { sources: config.sources } : {})
+                };
+            } catch (error) {
+                console.warn('Vercel player configuration unavailable; using local defaults.', error);
+            }
         }
         function savePlayerTemplate() {
             const input = document.getElementById('player-template-input');
@@ -2123,7 +2139,8 @@
             else return;
             event.preventDefault(); cards[next].focus();
         });
-        window.onload = () => {
+        window.onload = async () => {
+            await loadVercelPlayerConfig();
             if(isVIP) {
                 document.body.classList.add('vip-mode');
             }
