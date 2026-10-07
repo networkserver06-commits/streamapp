@@ -4,7 +4,7 @@ A responsive single-page media player for sources that you own or are authorized
 
 ## Features
 
-- Direct audio, video, and HLS (`.m3u8`) links; local audio/video files; automated Jamendo music playback
+- Direct audio, video, HLS (`.m3u8`), and YouTube links; local audio/video files
 - TMDB movie/series metadata and search
 - Installable PWA app shell with offline shell caching
 - Phone/tablet responsive layout, keyboard/TV remote navigation, and Picture-in-Picture where supported
@@ -26,7 +26,7 @@ Create an application in the [Jamendo developer portal](https://devportal.jamend
 
 ## Add media and TV
 
-Use **Admin** only for authorized direct audio/video/HLS URLs and catalog metadata. **Find Music** searches Jamendo and plays licensed catalog streams automatically. Direct source URLs must be absolute HTTP(S) links and work only when supported by the browser, the stream's codecs, and its CORS policy. TMDB supplies catalog metadata, not full movie/series playback.
+Use **Admin** to add YouTube videos, playlists, channels, or direct audio/video/HLS URLs. Videos and playlists play in the embedded player when YouTube permits embedding; a **Watch on YouTube** fallback is available for restricted videos. A channel ID is not itself a video, and its live embed fails when no broadcast is active, so channel entries show official **Watch Live** and **Browse Channel Videos** links instead. Direct source URLs must be absolute HTTP(S) links and work only when supported by the browser, the stream's codecs, and its CORS policy. For catalog items, add the TMDB ID; playback is available only when an authorized direct playback URL is supplied. Otherwise, use **Official Source** to discover licensed watch options.
 
 Common audio formats include MP3, M4A, AAC, WAV, OGG, OPUS, and FLAC. Common video formats include MP4, WebM, MOV, and HLS; actual support varies by device. DRM playback and MPEG-DASH are not implemented.
 
