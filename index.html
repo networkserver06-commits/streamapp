@@ -828,6 +828,7 @@
                 <h1 id="det-title" class="details-title">TITLE</h1>
                 <div id="det-meta" class="details-meta">2026 | ⭐ 8.5/10</div>
                 <div id="det-desc" class="details-desc">Loading description...</div>
+                <div id="det-cast" class="details-meta" style="margin-top:10px;color:#aaa;">Cast: Loading...</div>
                 <div id="provider-panel" style="margin:18px 0;padding:14px;border:1px solid rgba(255,215,0,.35);border-radius:12px;background:rgba(0,0,0,.28);">
                     <div id="provider-heading" style="font-family:'Orbitron';color:var(--primary);font-size:.78rem;letter-spacing:1px;margin-bottom:8px;">LEGAL WATCH OPTIONS</div>
                     <div id="provider-list" style="font-size:.8rem;color:#aaa;">Loading official providers...</div>
@@ -933,8 +934,8 @@
                 <div id="player"></div>
                 <audio id="audio-player" controls playsinline preload="metadata" aria-label="Audio player"></audio>
                 <div id="player-status" class="player-status" role="status" aria-live="polite">Choose a channel or paste a supported media link.</div>
-                <iframe id="movie-frame" referrerpolicy="no-referrer" allowfullscreen allow="autoplay; encrypted-media; picture-in-picture"></iframe>
-                <iframe id="yt-frame" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                <iframe id="movie-frame" referrerpolicy="no-referrer" allow="autoplay; encrypted-media; fullscreen" allowfullscreen frameborder="0"></iframe>
+                <iframe id="yt-frame" allow="autoplay; encrypted-media; fullscreen" allowfullscreen frameborder="0"></iframe>
                 <iframe id="game-frame" allowfullscreen></iframe>
             </div>
 
@@ -992,7 +993,8 @@
 
     <footer class="custom-footer">
         <p style="font-family:'Orbitron', sans-serif; font-size:0.95rem; color:#aaa; letter-spacing: 3px; margin-bottom: 12px; text-transform: uppercase;">© 2026 LEE TECH SERVICES // ALL RIGHTS RESERVED</p>
-        <p style="font-size: 0.9rem; color: #777; margin-bottom: 25px;">Engineered for supreme performance by <span style="color: var(--primary); font-weight: bold;">Lee Tech</span></p>
+        <p style="font-size: 0.9rem; color: #777; margin-bottom: 12px;">Engineered for supreme performance by <span style="color: var(--primary); font-weight: bold;">Lee Tech</span></p>
+        <p style="font-size: 0.75rem; color: #777; max-width: 760px; margin: 0 auto 25px; line-height: 1.5;">This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
         <div style="display: flex; gap: 15px; justify-content: center; align-items: center; flex-wrap: wrap;">
             <a href="https://wa.me/254116553618" target="_blank" style="color: #000; background: var(--primary); text-decoration: none; font-weight: 900; font-family: 'Orbitron', sans-serif; font-size: 0.85rem; padding: 12px 30px; border-radius: 30px; transition: var(--transition); box-shadow: 0 5px 15px rgba(255,215,0,0.3);">CONTACT DEVELOPER</a>
             <a href="https://chat.whatsapp.com/F96PprVLoKk7tUGM5RLbWY" target="_blank" style="color: #fff; background: #25D366; text-decoration: none; font-weight: 900; font-family: 'Orbitron', sans-serif; font-size: 0.85rem; padding: 12px 30px; border-radius: 30px; transition: var(--transition); box-shadow: 0 5px 15px rgba(37, 211, 102, 0.3);">JOIN WHATSAPP GROUP</a>
@@ -1554,6 +1556,7 @@
             document.getElementById('det-img').src = ch.img;
             document.getElementById('det-meta').innerText = "Loading data...";
             document.getElementById('det-desc').innerText = "Connecting to global database...";
+            document.getElementById('det-cast').innerText = 'Cast: Loading...';
             document.getElementById('provider-list').innerText = 'Loading official providers...';
             const fullPlayButton = document.getElementById('det-play-btn');
             if (fullPlayButton) {
@@ -1565,15 +1568,18 @@
             loadWatchProviders(ch, idx);
 
             try {
-                const data = await tmdbFetch(`${ch.cType}/${encodeURIComponent(ch.tmdbId)}`);
+                const data = await tmdbFetch(`${ch.cType}/${encodeURIComponent(ch.tmdbId)}`, { append_to_response: 'credits' });
 
                 if(data.id) {
                     const year = (ch.cType === 'tv' ? data.first_air_date : data.release_date) || "N/A";
                     const rating = data.vote_average ? data.vote_average.toFixed(1) : "N/A";
                     document.getElementById('det-meta').innerText = `${year.split('-')[0]} | ⭐ ${rating}/10 | ${ch.cType.toUpperCase()}`;
                     document.getElementById('det-desc').innerText = data.overview || "No description available.";
+                    const cast = Array.isArray(data.credits && data.credits.cast) ? data.credits.cast.slice(0, 8).map(person => person.name).filter(Boolean) : [];
+                    document.getElementById('det-cast').innerText = cast.length ? `Cast: ${cast.join(', ')}` : 'Cast: Not available';
                 }
             } catch (e) {
+                document.getElementById('det-cast').innerText = 'Cast: Metadata unavailable';
                 document.getElementById('det-desc').innerText = e.message === 'TMDB_CREDENTIALS_MISSING' || e.message === 'TMDB_API_KEY_MISSING' ? 'TMDB metadata is disabled until the site owner configures TMDB_ACCESS_TOKEN or TMDB_API_KEY.' : 'TMDB could not load this title. Check the TMDB configuration or network.';
             }
         }

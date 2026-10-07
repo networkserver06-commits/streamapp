@@ -36,6 +36,8 @@ Use **FIND KENYA TV** to search these official Kenyan channels instantly by name
 
 **FREE ARCHIVE FILMS** searches the Internet Archive’s Prelinger collection and opens the official Archive embed inside the player without an API key. YouTube trailers/clips use the official no-cookie embed. Vimeo and Watchmode require the account’s authorized API credentials and are not treated as anonymous free stream sources; TMDB/Watchmode links are availability links, not embeddable media.
 
+The hybrid player loads TMDB title metadata, release date, overview, rating, and top cast through the TMDB proxy. The details view loads official YouTube trailer/clip keys from TMDB and plays them in the embedded YouTube player, embeds Internet Archive films through the official Archive player, and shows global TMDB Watch Provider cards with free/ad-supported options first. The footer includes the required notice: “This product uses the TMDB API but is not endorsed or certified by TMDB.”
+
 Common audio formats include MP3, M4A, AAC, WAV, OGG, OPUS, and FLAC. Common video formats include MP4, WebM, MOV, and HLS; actual support varies by device. DRM playback and MPEG-DASH are not implemented.
 
 ## Access-control note
