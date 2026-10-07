@@ -16,7 +16,7 @@ Deploy the repository root to Vercel. Keep `index.html`, `api/`, `vercel.json`, 
 
 ## TMDB setup
 
-In Vercel, open **Project Settings → Environment Variables**, add `TMDB_API_KEY` with your TMDB v3 API key for Production and Preview, then redeploy. The `/api/tmdb/*` serverless proxy injects the key on the server, so it is not sent to browsers. Search and title metadata become available after the redeploy. The Admin key field remains an optional local-development fallback.
+In Vercel, open **Project Settings → Environment Variables**, add either `TMDB_ACCESS_TOKEN` with the TMDB v4 Bearer token or `TMDB_API_KEY` with the TMDB v3 API key for Production and Preview, then redeploy. `TMDB_ACCESS_TOKEN` takes priority when both are present. The `/api/tmdb/*` serverless proxy injects the credential on the server, so it is not sent to browsers. Search and title metadata become available after the redeploy; when TMDB is temporarily unavailable, trending falls back to saved catalog titles. The Admin key field remains an optional local-development fallback.
 
 The TMDB key previously embedded in the public source should be revoked/rotated before deployment.
 

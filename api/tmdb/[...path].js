@@ -13,7 +13,8 @@ module.exports = async function handler(req, res) {
   }
 
   const apiKey = process.env.TMDB_API_KEY;
-  if (!apiKey) return res.status(500).json({ error: 'TMDB_API_KEY_MISSING' });
+  const accessToken = process.env.TMDB_ACCESS_TOKEN;
+  if (!apiKey && !accessToken) return res.status(500).json({ error: 'TMDB_CREDENTIALS_MISSING' });
 
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(req.query)) {
@@ -22,11 +23,14 @@ module.exports = async function handler(req, res) {
       if (item !== undefined && item !== null) params.append(key, String(item));
     }
   }
-  params.set('api_key', apiKey);
+  if (apiKey && !accessToken) params.set('api_key', apiKey);
 
   try {
     const response = await fetch(`https://api.themoviedb.org/3/${path}?${params}` , {
-      headers: { Accept: 'application/json' }
+      headers: {
+        Accept: 'application/json',
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {})
+      }
     });
     const body = await response.text();
     res.setHeader('Content-Type', response.headers.get('content-type') || 'application/json');

@@ -1424,7 +1424,7 @@
                     document.getElementById('det-desc').innerText = data.overview || "No description available.";
                 }
             } catch (e) {
-                document.getElementById('det-desc').innerText = e.message === 'TMDB_API_KEY_MISSING' ? 'TMDB metadata is disabled until the site owner configures a TMDB API key.' : 'TMDB could not load this title. Check the API key or network.';
+                document.getElementById('det-desc').innerText = e.message === 'TMDB_CREDENTIALS_MISSING' || e.message === 'TMDB_API_KEY_MISSING' ? 'TMDB metadata is disabled until the site owner configures TMDB_ACCESS_TOKEN or TMDB_API_KEY.' : 'TMDB could not load this title. Check the TMDB configuration or network.';
             }
         }
 
@@ -1476,6 +1476,28 @@
             setTimeout(() => document.getElementById('search-input').focus(), 100);
         }
 
+        function renderLocalCatalogFallback(type) {
+            const resBox = document.getElementById('api-results');
+            resBox.replaceChildren();
+            const entries = CHANNELS.map((item, index) => ({ item, index }))
+                .filter(({ item }) => item && item.type === 'cinema' && item.cType === type && item.tmdbId);
+            entries.forEach(({ item, index }) => {
+                const card = document.createElement('button');
+                card.type = 'button'; card.className = 'api-card';
+                card.setAttribute('aria-label', `Open ${item.name}`);
+                const image = document.createElement('img');
+                image.src = safeWebUrl(item.img) || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.name)}&background=222&color=ffd700&size=512`;
+                image.alt = `${item.name} poster`; image.loading = 'lazy'; image.style.cssText = 'width:100%;height:100%;object-fit:cover';
+                const caption = document.createElement('span');
+                caption.textContent = `${item.name} (saved catalog)`;
+                caption.style.cssText = 'position:absolute;bottom:0;width:100%;background:rgba(0,0,0,.9);padding:15px 10px;font-size:.8rem;font-weight:bold;text-align:left;color:#fff';
+                card.append(image, caption);
+                card.addEventListener('click', () => openDetails(index));
+                resBox.appendChild(card);
+            });
+            if (!resBox.children.length) resBox.innerHTML = '<p style="padding:30px;color:#777">TMDB is unavailable and no saved catalog titles are available.</p>';
+        }
+
         async function fetchTrending(type) {
             const resBox = document.getElementById('api-results');
             try {
@@ -1490,7 +1512,14 @@
                     document.getElementById('search-status').innerText = '🔥 TRENDING TODAY';
                     renderAPIResults(data.results, type);
                 }
-            } catch(e) { document.getElementById('search-status').innerText = e.message === 'JAMENDO_CLIENT_ID_MISSING' || e.message === 'JAMENDO_CLIENT_ID_INVALID' ? 'Music is not configured correctly. Check JAMENDO_CLIENT_ID in Vercel Project Settings, then redeploy.' : e.message === 'TMDB_API_KEY_MISSING' ? 'TMDB is not configured. Add TMDB_API_KEY in Vercel Project Settings, then redeploy.' : 'Trending failed to load. Check the API key or try again.'; }
+            } catch(e) {
+                if (type === 'music') {
+                    document.getElementById('search-status').innerText = e.message === 'JAMENDO_CLIENT_ID_MISSING' || e.message === 'JAMENDO_CLIENT_ID_INVALID' ? 'Music is not configured correctly. Check JAMENDO_CLIENT_ID in Vercel Project Settings, then redeploy.' : `Music search failed: ${apiErrorText(e.message, 'unknown error')}`;
+                } else {
+                    document.getElementById('search-status').innerText = e.message === 'TMDB_CREDENTIALS_MISSING' || e.message === 'TMDB_API_KEY_MISSING' ? 'TMDB is not configured. Add TMDB_ACCESS_TOKEN or TMDB_API_KEY in Vercel Project Settings, then redeploy. Showing saved catalog.' : 'TMDB trending is temporarily unavailable. Showing saved catalog.';
+                    renderLocalCatalogFallback(type);
+                }
+            }
         }
 
         function startVoiceSearch() {
@@ -1532,7 +1561,7 @@
                     statusBox.innerText = `FOUND ${data.results.length} RESULTS`;
                     renderAPIResults(data.results, searchMode);
                 } else { statusBox.innerText = "NO RESULTS FOUND."; }
-            } catch (e) { statusBox.innerText = e.message === 'JAMENDO_CLIENT_ID_MISSING' || e.message === 'JAMENDO_CLIENT_ID_INVALID' ? 'Music is not configured correctly. Check JAMENDO_CLIENT_ID in Vercel Project Settings, then redeploy.' : e.message === 'TMDB_API_KEY_MISSING' ? 'TMDB is not configured. Add TMDB_API_KEY in Vercel Project Settings, then redeploy.' : `API request failed (${apiErrorText(e.message, 'unknown error')}). Check the key or network and retry.`; }
+            } catch (e) { statusBox.innerText = e.message === 'JAMENDO_CLIENT_ID_MISSING' || e.message === 'JAMENDO_CLIENT_ID_INVALID' ? 'Music is not configured correctly. Check JAMENDO_CLIENT_ID in Vercel Project Settings, then redeploy.' : e.message === 'TMDB_CREDENTIALS_MISSING' || e.message === 'TMDB_API_KEY_MISSING' ? 'TMDB is not configured. Add TMDB_ACCESS_TOKEN or TMDB_API_KEY in Vercel Project Settings, then redeploy.' : `API request failed (${apiErrorText(e.message, 'unknown error')}). Check the key or network and retry.`; }
         }
 
         function renderJamendoResults(results) {
