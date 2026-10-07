@@ -10,7 +10,7 @@ module.exports = async function handler(req, res) {
   const path = pathParts.filter(Boolean).join('/');
   if (!ALLOWED_PATH.test(path)) return res.status(400).json({ error: 'INVALID_JAMENDO_PATH' });
 
-  const clientId = process.env.JAMENDO_API_KEY || process.env.JAMENDO_CLIENT_ID;
+  const clientId = process.env.JAMENDO_CLIENT_ID || process.env.JAMENDO_API_KEY;
   if (!clientId) return res.status(500).json({ error: 'JAMENDO_CLIENT_ID_MISSING' });
 
   const params = new URLSearchParams();
