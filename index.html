@@ -1105,7 +1105,7 @@
         }
 
         const DEFAULT_CHANNELS = [
-            { name: "CITIZEN TV", channelId: "UChBQgieUidXV1CmDxSdRm3g", type: "youtube", category: "kenya", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/Citizen_TV_logo.png/600px-Citizen_TV_logo.png", watched: false, fav: false, reqVip: false },
+            { name: "CITIZEN TV", channelId: "UChBQgieUidXV1CmDxSdRm3g", liveVideoId: "vfb4giparyk", type: "youtube", category: "kenya", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/Citizen_TV_logo.png/600px-Citizen_TV_logo.png", watched: false, fav: false, reqVip: false },
             { name: "NTV KENYA", channelId: "UCqBJ47FjJcl61fmSbcadAVg", type: "youtube", category: "kenya", img: "https://upload.wikimedia.org/wikipedia/en/thumb/5/5c/NTV_Kenya_Logo.png/220px-NTV_Kenya_Logo.png", watched: false, fav: false, reqVip: false },
             { name: "KTN NEWS", channelId: "UCKVsdeoHExltrWMuK0hOWmg", type: "youtube", category: "kenya", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/KTN_News_Logo.png/250px-KTN_News_Logo.png", watched: false, fav: false, reqVip: false },
             { name: "K24 TV", channelId: "UCt3SE-Mvs3WwP7UW-PiFdqQ", type: "youtube", category: "kenya", img: "https://ui-avatars.com/api/?name=K24+TV&background=111&color=ffd700&size=512", watched: false, fav: false, reqVip: false },
@@ -1744,7 +1744,12 @@
             let openedSource = true;
             if (ch.type === 'youtube') {
                 const frame = document.getElementById('yt-frame');
-                if (ch.channelId) {
+                if (ch.liveVideoId) {
+                    frame.style.display = 'block';
+                    frame.src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(ch.liveVideoId)}?autoplay=1&rel=0&playsinline=1`;
+                    setPlayerStatus(`Playing official live broadcast: ${ch.name}`);
+                    showToast('OPENING OFFICIAL LIVE BROADCAST');
+                } else if (ch.channelId) {
                     const embedUrl = youtubeChannelEmbedUrl(ch.channelId);
                     if (embedUrl) {
                         frame.style.display = 'block';
