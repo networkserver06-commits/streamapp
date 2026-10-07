@@ -30,6 +30,8 @@ Use the paste panel to play YouTube, audio, video, or HLS links in the embedded 
 
 Movie and series details also load the official TMDB Watch Providers list for Kenya (`KE`). Free, ad-supported, subscription, rent, and buy providers are grouped in an inline selector and link to the official TMDB/JustWatch availability page. These provider records do not include embeddable streams; full in-site playback still requires an authorized source or a provider SDK that explicitly permits embedding.
 
+The **Kenya** library includes official live channels for Citizen TV, NTV Kenya, KTN News, K24 TV, KBC Channel 1, TV47 Kenya, and Maisha TV Kenya. Selecting a channel loads its official YouTube live-channel embed in the app player; if that broadcaster is not live at the moment, the player reports that the live feed is unavailable rather than redirecting to an unverified source.
+
 Common audio formats include MP3, M4A, AAC, WAV, OGG, OPUS, and FLAC. Common video formats include MP4, WebM, MOV, and HLS; actual support varies by device. DRM playback and MPEG-DASH are not implemented.
 
 ## Access-control note

@@ -1108,6 +1108,10 @@
             { name: "CITIZEN TV", channelId: "UChBQgieUidXV1CmDxSdRm3g", type: "youtube", category: "kenya", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/Citizen_TV_logo.png/600px-Citizen_TV_logo.png", watched: false, fav: false, reqVip: false },
             { name: "NTV KENYA", channelId: "UCqBJ47FjJcl61fmSbcadAVg", type: "youtube", category: "kenya", img: "https://upload.wikimedia.org/wikipedia/en/thumb/5/5c/NTV_Kenya_Logo.png/220px-NTV_Kenya_Logo.png", watched: false, fav: false, reqVip: false },
             { name: "KTN NEWS", channelId: "UCKVsdeoHExltrWMuK0hOWmg", type: "youtube", category: "kenya", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/KTN_News_Logo.png/250px-KTN_News_Logo.png", watched: false, fav: false, reqVip: false },
+            { name: "K24 TV", channelId: "UCt3SE-Mvs3WwP7UW-PiFdqQ", type: "youtube", category: "kenya", img: "https://ui-avatars.com/api/?name=K24+TV&background=111&color=ffd700&size=512", watched: false, fav: false, reqVip: false },
+            { name: "KBC CHANNEL 1", channelId: "UCypNjM5hP1qcUqQZe57jNfg", type: "youtube", category: "kenya", img: "https://ui-avatars.com/api/?name=KBC+1&background=111&color=00f3ff&size=512", watched: false, fav: false, reqVip: false },
+            { name: "TV47 KENYA", channelId: "UC_zA9UIWE1fB-jfFk_DBSYw", type: "youtube", category: "kenya", img: "https://ui-avatars.com/api/?name=TV47&background=111&color=ff3131&size=512", watched: false, fav: false, reqVip: false },
+            { name: "MAISHA TV KENYA", channelId: "UCMHEDqpZlYKoRJIyap-rqpA", type: "youtube", category: "kenya", img: "https://ui-avatars.com/api/?name=Maisha+TV&background=111&color=25d366&size=512", watched: false, fav: false, reqVip: false },
             { name: "FIFA STREAM CENTER", url: "https://v3.sportsonline.to/", type: "iframe", category: "sports", img: "https://ui-avatars.com/api/?name=FIFA+LIVE&background=00f3ff&color=000&size=512", watched: false, fav: true, reqVip: false },
             { name: "GLOBAL SPORTS HUB", url: "https://v1.score808.tv/", type: "iframe", category: "sports", img: "https://ui-avatars.com/api/?name=LIVE+SPORTS&background=bc13fe&color=fff&size=512", watched: false, fav: true, reqVip: true },
             { name: "LOFI RADIO 24/7", id: "jfKfPfyJRdk", type: "youtube", category: "music", img: "https://i.ytimg.com/vi/jfKfPfyJRdk/maxresdefault.jpg", watched: false, fav: true, reqVip: false },
@@ -1763,7 +1767,7 @@
                 else { setPlayerStatus('This item has no valid web address.'); openedSource = false; }
             } else if (['audio','video','hls'].includes(ch.type) || mediaKind(ch.url)) {
                 openedSource = playDirectMedia(ch.url, ch.name, ch.type === 'audio' ? 'audio' : '');
-                if (openedSource && ch.type === 'audio' && ch.shareurl) setPlayerStatus(`Now playing: ${ch.name}${ch.artist ? ` — ${ch.artist}` : ''}`, [{ label: 'VIEW ON JAMENDO', href: ch.shareurl }]);
+                if (openedSource && ch.type === 'audio') setPlayerStatus(`Now playing: ${ch.name}${ch.artist ? ` — ${ch.artist}` : ''}`);
             } else {
                 setPlayerStatus('This item has no playable source URL. Add a supported direct media link.'); openedSource = false;
             }
