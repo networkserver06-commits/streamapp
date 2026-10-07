@@ -829,7 +829,7 @@
                 <div id="det-meta" class="details-meta">2026 | ⭐ 8.5/10</div>
                 <div id="det-desc" class="details-desc">Loading description...</div>
                 <div id="provider-panel" style="margin:18px 0;padding:14px;border:1px solid rgba(255,215,0,.35);border-radius:12px;background:rgba(0,0,0,.28);">
-                    <div style="font-family:'Orbitron';color:var(--primary);font-size:.78rem;letter-spacing:1px;margin-bottom:8px;">LEGAL WATCH OPTIONS — KENYA</div>
+                    <div id="provider-heading" style="font-family:'Orbitron';color:var(--primary);font-size:.78rem;letter-spacing:1px;margin-bottom:8px;">LEGAL WATCH OPTIONS</div>
                     <div id="provider-list" style="font-size:.8rem;color:#aaa;">Loading official providers...</div>
                 </div>
 
@@ -1463,7 +1463,18 @@
         }
 
         function getWatchRegion() {
-            return String(localStorage.getItem('streamhd_region') || 'KE').trim().toUpperCase().slice(0, 2) || 'KE';
+            const saved = String(localStorage.getItem('streamhd_region') || '').trim().toUpperCase().slice(0, 2);
+            if (/^[A-Z]{2}$/.test(saved)) return saved;
+            const localeRegion = String(navigator.language || '').split('-')[1] || String(navigator.language || '').split('_')[1] || '';
+            return /^[A-Za-z]{2}$/.test(localeRegion) ? localeRegion.toUpperCase() : 'US';
+        }
+
+        function chooseProviderRegion(results) {
+            if (!results || typeof results !== 'object') return null;
+            const preferred = [getWatchRegion(), 'KE', 'US', 'GB', 'CA', 'AU', 'ZA', 'NG'];
+            for (const region of preferred) if (results[region]) return { code: region, data: results[region] };
+            const first = Object.entries(results).find(([, value]) => value && typeof value === 'object');
+            return first ? { code: first[0], data: first[1] } : null;
         }
 
         async function loadWatchProviders(ch, entryIndex) {
@@ -1473,10 +1484,13 @@
             try {
                 const data = await tmdbFetch(`${ch.cType}/${encodeURIComponent(ch.tmdbId)}/watch/providers`);
                 if (activeDetailsEntry !== entryIndex) return;
-                const region = getWatchRegion();
-                const regionData = data.results && (data.results[region] || data.results.KE);
+                const selected = chooseProviderRegion(data.results);
+                const region = selected ? selected.code : getWatchRegion();
+                const regionData = selected && selected.data;
+                const heading = document.getElementById('provider-heading');
+                if (heading) heading.textContent = `LEGAL WATCH OPTIONS — ${region}`;
                 if (!regionData) {
-                    list.textContent = `No official streaming providers are listed for ${region}.`;
+                    list.textContent = 'No official streaming providers are listed in the available regions.';
                     return;
                 }
                 const groups = [
