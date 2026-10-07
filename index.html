@@ -1121,7 +1121,16 @@
         ];
 
         const storedChannels = readJsonStorage('nebula_v44', null);
-        let CHANNELS = Array.isArray(storedChannels) ? storedChannels.filter(item => item && typeof item === 'object' && typeof item.name === 'string').slice(0, 500) : DEFAULT_CHANNELS;
+        const validStoredChannels = Array.isArray(storedChannels) ? storedChannels.filter(item => item && typeof item === 'object' && typeof item.name === 'string') : [];
+        const defaultNames = new Set(DEFAULT_CHANNELS.map(item => item.name.toLowerCase()));
+        const storedByName = new Map(validStoredChannels.map(item => [item.name.toLowerCase(), item]));
+        const mergedDefaults = DEFAULT_CHANNELS.map(item => {
+            const saved = storedByName.get(item.name.toLowerCase()) || {};
+            return { ...item, ...saved, name: item.name, type: item.type, category: item.category, ...(item.channelId ? { channelId: item.channelId } : {}), fav: saved.fav ?? item.fav, watched: saved.watched ?? item.watched };
+        });
+        const customStored = validStoredChannels.filter(item => !defaultNames.has(item.name.toLowerCase()));
+        let CHANNELS = [...mergedDefaults, ...customStored].slice(0, 500);
+        try { localStorage.setItem('nebula_v44', JSON.stringify(CHANNELS)); } catch {}
 
         // Catalog metadata links to TMDB; playback uses user-supplied or authorized sources only.
         let activeHls = null;
