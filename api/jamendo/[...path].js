@@ -28,6 +28,12 @@ module.exports = async function handler(req, res) {
       headers: { Accept: 'application/json' }
     });
     const body = await response.text();
+    let parsed;
+    try { parsed = JSON.parse(body); } catch {}
+    if (parsed && parsed.headers && String(parsed.headers.status).toLowerCase() === 'failed') {
+      const message = parsed.headers.error_message || 'JAMENDO_UPSTREAM_REQUEST_FAILED';
+      return res.status(502).json({ error: message, code: parsed.headers.code || 'JAMENDO_UPSTREAM_ERROR' });
+    }
     res.setHeader('Content-Type', response.headers.get('content-type') || 'application/json');
     res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
     return res.status(response.status).send(body);

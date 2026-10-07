@@ -1015,6 +1015,20 @@
         let RECENT_WATCHED = readJsonStorage('nebula_recent', []);
         if (!Array.isArray(RECENT_WATCHED)) RECENT_WATCHED = [];
         function getTmdbApiKey() { return (window.STREAMHD_CONFIG && window.STREAMHD_CONFIG.tmdbApiKey) || localStorage.getItem('streamhd_tmdb_api_key') || ''; }
+        function apiErrorText(value, fallback = 'API request failed') {
+            if (typeof value === 'string' && value.trim()) return value.trim();
+            if (value && typeof value === 'object') {
+                const message = value.message || value.error_message || value.error || value.detail || value.status_message;
+                if (typeof message === 'string' && message.trim()) return message.trim();
+                if (value.code !== undefined) return `${fallback} (code ${value.code})`;
+                try { return JSON.stringify(value); } catch {}
+            }
+            return fallback;
+        }
+        function apiErrorCode(value) {
+            if (!value || typeof value !== 'object') return '';
+            return String(value.code || value.error_code || '').toUpperCase();
+        }
         async function tmdbFetch(path, params = {}) {
             const apiKey = getTmdbApiKey();
             const cleanPath = path.replace(/^\//, '');
@@ -1025,7 +1039,7 @@
             const response = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
             if (!response.ok) {
                 const body = await response.json().catch(() => ({}));
-                throw new Error(body.error || `TMDB_HTTP_${response.status}`);
+                throw new Error(apiErrorText(body.error || body, `TMDB_HTTP_${response.status}`));
             }
             return response.json();
         }
@@ -1035,9 +1049,16 @@
             const response = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
             if (!response.ok) {
                 const body = await response.json().catch(() => ({}));
-                throw new Error(body.error || `JAMENDO_HTTP_${response.status}`);
+                if (String(body.code || '') === '5') throw new Error('JAMENDO_CLIENT_ID_INVALID');
+                throw new Error(apiErrorText(body.error || body, `JAMENDO_HTTP_${response.status}`));
             }
-            return response.json();
+            const body = await response.json();
+            if (body && body.headers && String(body.headers.status).toLowerCase() === 'failed') {
+                const code = apiErrorCode(body.headers);
+                const message = code === '5' ? 'JAMENDO_CLIENT_ID_INVALID' : apiErrorText(body.headers.error_message, `Jamendo request failed${code ? ` (code ${code})` : ''}.`);
+                throw new Error(message);
+            }
+            return body;
         }
         function safeWebUrl(value) {
             const raw = String(value || '').trim();
@@ -1454,7 +1475,7 @@
                     document.getElementById('search-status').innerText = '🔥 TRENDING TODAY';
                     renderAPIResults(data.results, type);
                 }
-            } catch(e) { document.getElementById('search-status').innerText = e.message === 'JAMENDO_CLIENT_ID_MISSING' ? 'Music is not configured. Add JAMENDO_CLIENT_ID in Vercel Project Settings, then redeploy.' : e.message === 'TMDB_API_KEY_MISSING' ? 'TMDB is not configured. Add TMDB_API_KEY in Vercel Project Settings, then redeploy.' : 'Trending failed to load. Check the API key or try again.'; }
+            } catch(e) { document.getElementById('search-status').innerText = e.message === 'JAMENDO_CLIENT_ID_MISSING' || e.message === 'JAMENDO_CLIENT_ID_INVALID' ? 'Music is not configured correctly. Check JAMENDO_CLIENT_ID in Vercel Project Settings, then redeploy.' : e.message === 'TMDB_API_KEY_MISSING' ? 'TMDB is not configured. Add TMDB_API_KEY in Vercel Project Settings, then redeploy.' : 'Trending failed to load. Check the API key or try again.'; }
         }
 
         function startVoiceSearch() {
@@ -1496,7 +1517,7 @@
                     statusBox.innerText = `FOUND ${data.results.length} RESULTS`;
                     renderAPIResults(data.results, searchMode);
                 } else { statusBox.innerText = "NO RESULTS FOUND."; }
-            } catch (e) { statusBox.innerText = e.message === 'JAMENDO_CLIENT_ID_MISSING' ? 'Music is not configured. Add JAMENDO_CLIENT_ID in Vercel Project Settings, then redeploy.' : e.message === 'TMDB_API_KEY_MISSING' ? 'TMDB is not configured. Add TMDB_API_KEY in Vercel Project Settings, then redeploy.' : `API request failed (${e.message}). Check the key or network and retry.`; }
+            } catch (e) { statusBox.innerText = e.message === 'JAMENDO_CLIENT_ID_MISSING' || e.message === 'JAMENDO_CLIENT_ID_INVALID' ? 'Music is not configured correctly. Check JAMENDO_CLIENT_ID in Vercel Project Settings, then redeploy.' : e.message === 'TMDB_API_KEY_MISSING' ? 'TMDB is not configured. Add TMDB_API_KEY in Vercel Project Settings, then redeploy.' : `API request failed (${apiErrorText(e.message, 'unknown error')}). Check the key or network and retry.`; }
         }
 
         function renderJamendoResults(results) {
