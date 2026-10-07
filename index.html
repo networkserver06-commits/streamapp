@@ -157,7 +157,7 @@
             align-items: center; 
             justify-content: center; 
         }
-        #player, #movie-frame, #yt-frame, #game-frame, #audio-player {
+        #player, #movie-frame, #game-frame, #audio-player {
             width: 100%; height: 100%; position: absolute; inset: 0; border: none;
             display: none; background: #000; z-index: 5;
         }
@@ -812,8 +812,7 @@
                 <div id="det-desc" class="details-desc">Loading description...</div>
 
                 <div class="btn-grid" style="grid-template-columns: 1fr 1fr;">
-                    <button class="btn btn-primary" onclick="playCurrentDetails()">▶️ PLAY / TRAILER</button>
-                    <button class="btn" style="border-color: #00f3ff; color: #00f3ff;" onclick="trailerCurrentDetails()">📺 TRAILER</button>
+                    <button class="btn btn-primary" onclick="playCurrentDetails()">▶️ PLAY</button>
                     <button class="btn" onclick="shareCurrentDetails()">🔗 SHARE APP</button>
                     <button class="btn" style="border-color: #ff3131; color: #ff3131;" onclick="closeOverlay('details-overlay')">CLOSE</button>
                 </div>
@@ -853,9 +852,7 @@
                     <option value="tv">Series (TMDB ID)</option>
                     <option value="livetv">Live TV (M3U8 HLS Link)</option>
                     <option value="iframe">Sports/Web Embed (URL)</option>
-                    <option value="youtube">YouTube (Video / Playlist / Channel URL)</option>
                     <option value="game">Cloud Game (URL)</option>
-                    <option value="music">Music / YouTube video</option>
                     <option value="audio">Direct audio URL (MP3, M4A, AAC, WAV, OGG, FLAC, OPUS)</option>
                     <option value="video">Direct video URL (MP4, WebM, MOV, M3U8)</option>
                 </select>
@@ -912,13 +909,12 @@
                 <audio id="audio-player" controls playsinline preload="metadata" aria-label="Audio player"></audio>
                 <div id="player-status" class="player-status" role="status" aria-live="polite">Choose a channel or paste a supported media link.</div>
                 <iframe id="movie-frame" referrerpolicy="no-referrer" allowfullscreen allow="autoplay; encrypted-media; picture-in-picture"></iframe>
-                <iframe id="yt-frame" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
                 <iframe id="game-frame" allowfullscreen></iframe>
             </div>
 
             <!-- PASTE & PLAY PANEL -->
             <div class="paste-play-box">
-                <input type="url" id="paste-link-input" class="paste-input" placeholder="Paste an authorized YouTube, HLS, video, or audio URL..." aria-label="Media URL" autocomplete="url">
+                <input type="url" id="paste-link-input" class="paste-input" placeholder="Paste an authorized HLS, video, or audio URL..." aria-label="Media URL" autocomplete="url">
                 <div style="display: flex; gap: 8px;">
                     <button class="btn btn-primary" style="padding: 12px 20px;" onclick="handlePastePlay()">▶️ PLAY</button>
                     <button class="btn" style="border-color:#ff8c00; color:#ff8c00; padding:12px 15px;" onclick="handlePasteDownload()">↗ OPEN LINK</button>
@@ -1015,6 +1011,7 @@
         }
         let RECENT_WATCHED = readJsonStorage('nebula_recent', []);
         if (!Array.isArray(RECENT_WATCHED)) RECENT_WATCHED = [];
+        RECENT_WATCHED = RECENT_WATCHED.filter(item => item && item.type !== 'youtube');
         function getTmdbApiKey() { return (window.STREAMHD_CONFIG && window.STREAMHD_CONFIG.tmdbApiKey) || localStorage.getItem('streamhd_tmdb_api_key') || ''; }
         async function tmdbFetch(path, params = {}) {
             const apiKey = getTmdbApiKey();
@@ -1055,43 +1052,14 @@
             } catch {}
             return '';
         }
-        function youtubeTarget(raw) {
-            try {
-                const url = new URL(raw);
-                const host = url.hostname.replace(/^www\./, '').replace(/^m\./, '');
-                if (host === 'youtu.be') {
-                    const shortId = url.pathname.split('/').filter(Boolean)[0] || '';
-                    const shortPlaylist = url.searchParams.get('list');
-                    return shortId ? { id: shortId } : (shortPlaylist ? { playlist: shortPlaylist } : null);
-                }
-                if (!['youtube.com', 'music.youtube.com', 'youtube-nocookie.com'].includes(host) && !host.endsWith('.youtube.com')) return null;
-                const parts = url.pathname.split('/').filter(Boolean);
-                const id = url.searchParams.get('v') || (['embed','shorts','live','v'].includes(parts[0]) ? parts[1] : '');
-                const playlist = url.searchParams.get('list');
-                const liveChannel = url.searchParams.get('channel');
-                const channelParts = url.pathname.split('/').filter(Boolean);
-                if (liveChannel) return { channel: liveChannel };
-                if (channelParts[0] === 'channel' && channelParts[1]) return { channel: channelParts[1] };
-                if (channelParts[0] && (channelParts[0].startsWith('@') || ['c','user'].includes(channelParts[0]))) return { channelPage: `https://www.youtube.com/${channelParts.map(encodeURIComponent).join('/')}` };
-                if (id) return { id };
-                return playlist ? { playlist } : null;
-            } catch { return null; }
-        }
-
         const DEFAULT_CHANNELS = [
-            { name: "CITIZEN TV", channelId: "UChBQgieUidXV1CmDxSdRm3g", type: "youtube", category: "kenya", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/Citizen_TV_logo.png/600px-Citizen_TV_logo.png", watched: false, fav: false, reqVip: false },
-            { name: "NTV KENYA", channelId: "UCqBJ47FjJcl61fmSbcadAVg", type: "youtube", category: "kenya", img: "https://upload.wikimedia.org/wikipedia/en/thumb/5/5c/NTV_Kenya_Logo.png/220px-NTV_Kenya_Logo.png", watched: false, fav: false, reqVip: false },
-            { name: "KTN NEWS", channelId: "UCKVsdeoHExltrWMuK0hOWmg", type: "youtube", category: "kenya", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/KTN_News_Logo.png/250px-KTN_News_Logo.png", watched: false, fav: false, reqVip: false },
-            { name: "FIFA STREAM CENTER", url: "https://v3.sportsonline.to/", type: "iframe", category: "sports", img: "https://ui-avatars.com/api/?name=FIFA+LIVE&background=00f3ff&color=000&size=512", watched: false, fav: true, reqVip: false },
-            { name: "GLOBAL SPORTS HUB", url: "https://v1.score808.tv/", type: "iframe", category: "sports", img: "https://ui-avatars.com/api/?name=LIVE+SPORTS&background=bc13fe&color=fff&size=512", watched: false, fav: true, reqVip: true },
-            { name: "LOFI RADIO 24/7", id: "jfKfPfyJRdk", type: "youtube", category: "music", img: "https://i.ytimg.com/vi/jfKfPfyJRdk/maxresdefault.jpg", watched: false, fav: true, reqVip: false },
             { name: "JOHN WICK 4", tmdbId: "603692", type: "cinema", cType: "movie", category: "movie", img: "https://image.tmdb.org/t/p/w500/vZloFAK7NmvMGKE7VkF5UHaz0I.jpg", watched: false, fav: true, reqVip: false },
             { name: "AVATAR: THE WAY OF WATER", tmdbId: "76600", type: "cinema", cType: "movie", category: "movie", img: "https://image.tmdb.org/t/p/w500/t6HI63ehBscY7b68suu2PRzaias.jpg", watched: false, fav: false, reqVip: false },
             { name: "WEDNESDAY", tmdbId: "119051", type: "cinema", cType: "tv", category: "tv", img: "https://image.tmdb.org/t/p/w500/9PFGoY6K66vSgB68vA7z9Zg4961.jpg", watched: false, fav: false, reqVip: false }
         ];
 
         const storedChannels = readJsonStorage('nebula_v44', null);
-        let CHANNELS = Array.isArray(storedChannels) ? storedChannels.filter(item => item && typeof item === 'object' && typeof item.name === 'string').slice(0, 500) : DEFAULT_CHANNELS;
+        let CHANNELS = Array.isArray(storedChannels) ? storedChannels.filter(item => item && typeof item === 'object' && typeof item.name === 'string' && item.type !== 'youtube').slice(0, 500) : DEFAULT_CHANNELS;
 
         // Catalog metadata links to TMDB; playback uses user-supplied or authorized sources only.
         let activeHls = null;
@@ -1147,61 +1115,21 @@
                 status.appendChild(link);
             }
         }
-        function youtubeChannelLinks(channelId, channelUrl) {
-            let base = '';
-            if (channelId && /^UC[A-Za-z0-9_-]{22}$/.test(channelId)) base = `https://www.youtube.com/channel/${encodeURIComponent(channelId)}`;
-            else {
-                const safeUrl = safeWebUrl(channelUrl);
-                const target = safeUrl ? youtubeTarget(safeUrl) : null;
-                if (target && target.channel) base = `https://www.youtube.com/channel/${encodeURIComponent(target.channel)}`;
-                else if (target && target.channelPage) {
-                    try { const parsed = new URL(target.channelPage); parsed.pathname = parsed.pathname.replace(/\/(live|videos|shorts)\/?$/, '').replace(/\/$/, ''); base = parsed.href; } catch {}
-                }
-            }
-            return base ? [
-                { label: 'WATCH LIVE ON YOUTUBE', href: `${base}/live` },
-                { label: 'BROWSE CHANNEL VIDEOS', href: `${base}/videos` }
-            ] : [];
-        }
-        function youtubeChannelFallback(title, channelId, channelUrl) {
-            setPlayerStatus(`${title}: the embedded live player only has a video while the channel is broadcasting. Open the official channel for its live feed or recent uploads.`, youtubeChannelLinks(channelId, channelUrl));
-            showToast('OFFICIAL YOUTUBE CHANNEL OPTIONS READY');
-            return false;
-        }
-        function youtubeChannelEmbedUrl(channelId) {
-            if (!/^UC[A-Za-z0-9_-]{22}$/.test(String(channelId || ''))) return '';
-            return `https://www.youtube-nocookie.com/embed/live_stream?channel=${encodeURIComponent(channelId)}&autoplay=1&rel=0&playsinline=1`;
-        }
         function hideAllPlayers() {
             if (activeHls) { activeHls.destroy(); activeHls = null; }
-            ['player', 'audio-player', 'movie-frame', 'yt-frame', 'game-frame'].forEach(id => {
+            ['player', 'audio-player', 'movie-frame', 'game-frame'].forEach(id => {
                 const el = document.getElementById(id); if (el) el.style.display = 'none';
             });
             const audio = document.getElementById('audio-player');
             if (audio) { audio.pause(); audio.removeAttribute('src'); audio.load(); }
             if (art) { try { art.pause(); } catch {} }
-            ['movie-frame', 'yt-frame', 'game-frame'].forEach(id => { const el = document.getElementById(id); if (el) el.src = ''; });
+            ['movie-frame', 'game-frame'].forEach(id => { const el = document.getElementById(id); if (el) el.src = ''; });
         }
         function playDirectMedia(rawUrl, title = 'Direct media', forcedKind = '') {
             const url = safeWebUrl(rawUrl);
             if (!url) { showToast('USE A VALID HTTP OR HTTPS MEDIA LINK'); return false; }
-            const yt = youtubeTarget(url);
             hideAllPlayers();
             triggerLoader();
-            if (yt && yt.id) {
-                const frame = document.getElementById('yt-frame');
-                frame.style.display = 'block';
-                frame.src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(yt.id)}?autoplay=1&rel=0&playsinline=1`;
-                setPlayerStatus(`YouTube video: ${title}. If embedding is restricted, use the official link.`, [{ label: 'WATCH ON YOUTUBE', href: `https://www.youtube.com/watch?v=${encodeURIComponent(yt.id)}` }]);
-                showToast('OPENING YOUTUBE VIDEO'); return true;
-            }
-            if (yt && yt.playlist) {
-                const frame = document.getElementById('yt-frame'); frame.style.display = 'block';
-                frame.src = `https://www.youtube-nocookie.com/embed/videoseries?list=${encodeURIComponent(yt.playlist)}&autoplay=1&rel=0&playsinline=1`;
-                setPlayerStatus(`YouTube playlist: ${title}. If embedding is restricted, open it on YouTube.`, [{ label: 'OPEN PLAYLIST ON YOUTUBE', href: `https://www.youtube.com/playlist?list=${encodeURIComponent(yt.playlist)}` }]);
-                showToast('OPENING YOUTUBE PLAYLIST'); return true;
-            }
-            if (yt && (yt.channel || yt.channelPage)) return youtubeChannelFallback(title, yt.channel || '', yt.channelPage || '');
             const kind = forcedKind || mediaKind(url);
             if (kind === 'audio') {
                 const audio = document.getElementById('audio-player');
@@ -1215,7 +1143,7 @@
                 art.switchUrl(url, kind === 'hls' ? 'm3u8' : undefined);
                 setPlayerStatus(`${kind === 'hls' ? 'Live / HLS' : 'Video'}: ${title}`); return true;
             }
-            setPlayerStatus('Unsupported link. Use YouTube or a direct MP3/M4A/AAC/WAV/OGG/FLAC/OPUS, MP4/WebM/MOV/MKV, or M3U8 URL.');
+            setPlayerStatus('Unsupported media link. Use a direct MP3/M4A/AAC/WAV/OGG/FLAC/OPUS, MP4/WebM/MOV/MKV, or M3U8 URL.');
             showToast('UNSUPPORTED MEDIA LINK'); return false;
         }
         function handlePastePlay() {
@@ -1281,16 +1209,7 @@
             if (!title || !data) return showToast('TITLE AND DATA REQUIRED');
             const entry = { name: title.slice(0, 120), category: type, type, img, watched: false, fav: false, reqVip: type === 'game' || type === 'iframe' };
             if (type === 'movie' || type === 'tv') { entry.type = 'cinema'; entry.cType = type; entry.tmdbId = data; entry.url = playbackUrl; entry.category = type; }
-            else if (type === 'youtube' || type === 'music') {
-                const yt = youtubeTarget(safeWebUrl(data));
-                entry.type = 'youtube'; entry.category = type === 'music' ? 'music' : 'livetv';
-                if (yt && yt.id) entry.id = yt.id;
-                else if (yt && yt.playlist) entry.playlistId = yt.playlist;
-                else if (yt && yt.channel) entry.channelId = yt.channel;
-                else if (yt && yt.channelPage) entry.channelUrl = yt.channelPage;
-                else if (/^[A-Za-z0-9_-]{11}$/.test(data)) entry.id = data;
-                else return showToast('ENTER A VALID YOUTUBE VIDEO OR CHANNEL URL/ID');
-            } else if (type === 'audio' || type === 'video' || type === 'hls') {
+            else if (type === 'audio' || type === 'video' || type === 'hls') {
                 const url = safeWebUrl(data);
                 if (!url || (mediaKind(url) !== type && !(type === 'video' && mediaKind(url) === 'hls'))) return showToast('URL EXTENSION DOES NOT MATCH THE SELECTED MEDIA TYPE');
                 entry.type = type === 'video' && mediaKind(url) === 'hls' ? 'hls' : type;
@@ -1327,7 +1246,7 @@
                 try {
                     const importedData = JSON.parse(e.target.result);
                     if (!Array.isArray(importedData) || importedData.length > 500) throw new Error('Invalid library');
-                    CHANNELS = importedData.filter(item => item && typeof item === 'object' && typeof item.name === 'string' && item.name.trim())
+                    CHANNELS = importedData.filter(item => item && typeof item === 'object' && typeof item.name === 'string' && item.name.trim() && item.type !== 'youtube')
                         .map(item => ({ ...item, name: item.name.trim().slice(0, 120), img: safeWebUrl(item.img), url: safeWebUrl(item.url) }));
                     save(); renderChannels(); closeOverlay('admin-overlay'); showToast('LIBRARY RESTORED');
                 } catch (err) { showToast('INVALID OR UNSUPPORTED BACKUP FILE'); }
@@ -1378,22 +1297,8 @@
 
         function playCurrentDetails() {
             const ch = CHANNELS[activeDetailsEntry];
-            if (ch && ch.type === 'cinema' && !mediaKind(safeWebUrl(ch.url))) return trailerCurrentDetails();
             closeOverlay('details-overlay');
             switchSource(activeDetailsEntry);
-        }
-
-        async function trailerCurrentDetails() {
-            const ch = CHANNELS[activeDetailsEntry];
-            showToast("SEARCHING FOR TRAILER...");
-            try {
-                const data = await tmdbFetch(`${ch.cType}/${encodeURIComponent(ch.tmdbId)}/videos`);
-                if(data.results && data.results.length > 0) {
-                    const trailer = data.results.find(v => v.type === "Trailer") || data.results[0];
-                    closeOverlay('details-overlay');
-                    playDirectMedia(`https://www.youtube.com/watch?v=${encodeURIComponent(trailer.key)}`, `${ch.name} trailer`);
-                } else { showToast("TRAILER NOT FOUND"); }
-            } catch(e) { showToast("ERROR FETCHING TRAILER"); }
         }
 
         function shareCurrentDetails() {
@@ -1592,33 +1497,12 @@
             try { localStorage.setItem('nebula_recent', JSON.stringify(RECENT_WATCHED)); } catch {}
             hideAllPlayers(); triggerLoader();
             let openedSource = true;
-            if (ch.type === 'youtube') {
-                const frame = document.getElementById('yt-frame');
-                if (ch.channelId) {
-                    const embedUrl = youtubeChannelEmbedUrl(ch.channelId);
-                    if (embedUrl) {
-                        frame.style.display = 'block';
-                        frame.src = embedUrl;
-                        setPlayerStatus(`YouTube live channel: ${ch.name}. Playback appears here when the channel is broadcasting.`, youtubeChannelLinks(ch.channelId, ch.channelUrl || ''));
-                        showToast('OPENING YOUTUBE LIVE CHANNEL');
-                    } else {
-                        openedSource = youtubeChannelFallback(ch.name, '', ch.channelUrl || '');
-                    }
-                } else if (safeWebUrl(ch.channelUrl)) {
-                    openedSource = youtubeChannelFallback(ch.name, '', ch.channelUrl || '');
-                } else if (ch.playlistId) {
-                    frame.style.display = 'block'; frame.src = `https://www.youtube-nocookie.com/embed/videoseries?list=${encodeURIComponent(ch.playlistId)}&autoplay=1&rel=0&playsinline=1`;
-                    setPlayerStatus(`YouTube playlist: ${ch.name}. If embedding is restricted, open it on YouTube.`, [{ label: 'OPEN PLAYLIST ON YOUTUBE', href: `https://www.youtube.com/playlist?list=${encodeURIComponent(ch.playlistId)}` }]);
-                } else if (ch.id) {
-                    frame.style.display = 'block'; frame.src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(ch.id)}?autoplay=1&rel=0&playsinline=1`;
-                    setPlayerStatus(`YouTube video: ${ch.name}. If embedding is restricted, use the official link.`, [{ label: 'WATCH ON YOUTUBE', href: `https://www.youtube.com/watch?v=${encodeURIComponent(ch.id)}` }]);
-                } else { setPlayerStatus('This YouTube item has no valid video, playlist, or channel link.'); openedSource = false; }
-            } else if (ch.type === 'cinema') {
+            if (ch.type === 'cinema') {
                 if (safeWebUrl(ch.url) && mediaKind(safeWebUrl(ch.url))) {
                     playDirectMedia(ch.url, ch.name);
                 } else {
-                    setPlayerStatus(`Catalog item: ${ch.name}. Open its details and choose PLAY TRAILER, or add an authorized playback URL in Admin.`);
-                    showToast('OPEN DETAILS TO PLAY THE TRAILER'); openedSource = false;
+                    setPlayerStatus(`Catalog item: ${ch.name}. Add an authorized playback URL in Admin to play this catalog item.`);
+                    showToast('NO AUTHORIZED PLAYBACK URL FOR THIS CATALOG ITEM'); openedSource = false;
                 }
             } else if (ch.type === 'iframe' || ch.type === 'game') {
                 const frame = document.getElementById('game-frame'); const url = safeWebUrl(ch.url);
@@ -1635,7 +1519,7 @@
 
         function extractDownloadLink() {
             const ch = CHANNELS[activeIdx];
-            const targetUrl = ch && (ch.type === 'youtube' ? (ch.id ? `https://www.youtube.com/watch?v=${encodeURIComponent(ch.id)}` : '') : ch.url);
+            const targetUrl = ch && ch.url;
             const safeUrl = safeWebUrl(targetUrl);
             if (!safeUrl) return showToast('NO DIRECT SOURCE URL FOR THIS ITEM');
             window.open(safeUrl, '_blank', 'noopener,noreferrer');
