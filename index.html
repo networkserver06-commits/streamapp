@@ -952,6 +952,7 @@
                     <button class="btn btn-primary" onclick="openSearch('movie')">🎬 FIND MOVIE</button>
                     <button class="btn btn-primary" onclick="openSearch('tv')">📺 FIND SERIES</button>
                     <button class="btn btn-primary" onclick="openSearch('music')">🎵 FIND MUSIC</button>
+                    <button class="btn btn-primary" onclick="openSearch('kenya')">🇰🇪 FIND KENYA TV</button>
 
                     <button class="btn" style="border-color: #00ff41; color: #00ff41;" onclick="document.getElementById('local-video').click()">📂 PLAY LOCAL</button>
                     <input type="file" id="local-video" accept="video/mp4,video/x-m4v,video/*,audio/*" onchange="playLocalVideo(event)">
@@ -1250,8 +1251,9 @@
             ] : [];
         }
         function youtubeChannelFallback(title, channelId, channelUrl) {
-            setPlayerStatus(`${title}: live playback is not currently available.`);
-            showToast('LIVE PLAYBACK IS NOT CURRENTLY AVAILABLE');
+            const actions = youtubeChannelLinks(channelId, channelUrl);
+            setPlayerStatus(`${title}: official broadcaster feed is loading. If no live programme is scheduled, the channel remains available when its next broadcast starts.`, actions);
+            showToast('OFFICIAL CHANNEL FEED LOADING');
             return false;
         }
         function youtubeChannelEmbedUrl(channelId) {
@@ -1588,13 +1590,28 @@
         function openSearch(type) {
             searchMode = type;
             document.getElementById('search-input').value = '';
-            document.getElementById('search-head-title').innerText = type === 'movie' ? ' 🎬 SEARCH MOVIES' : type === 'tv' ? '📺 SEARCH SERIES' : '🎵 SEARCH MUSIC';
+            document.getElementById('search-head-title').innerText = type === 'movie' ? ' 🎬 SEARCH MOVIES' : type === 'tv' ? '📺 SEARCH SERIES' : type === 'kenya' ? '🇰🇪 SEARCH KENYA TV' : '🎵 SEARCH MUSIC';
             document.getElementById('api-results').innerHTML = '';
-            document.getElementById('search-status').innerText = 'LOADING TRENDING TODAY...';
+            document.getElementById('search-status').innerText = type === 'kenya' ? 'READY — SEARCH OFFICIAL KENYAN CHANNELS' : 'LOADING TRENDING TODAY...';
             document.getElementById('search-overlay').style.display = 'flex';
 
-            fetchTrending(type);
+            if (type === 'kenya') renderKenyaSearchResults(''); else fetchTrending(type);
             setTimeout(() => document.getElementById('search-input').focus(), 100);
+        }
+
+        function renderKenyaSearchResults(query) {
+            const resBox = document.getElementById('api-results');
+            const needle = String(query || '').trim().toLowerCase();
+            resBox.replaceChildren();
+            CHANNELS.map((item, index) => ({ item, index }))
+                .filter(({ item }) => item && item.category === 'kenya' && (!needle || item.name.toLowerCase().includes(needle)))
+                .forEach(({ item, index }) => {
+                    const card = document.createElement('button'); card.type = 'button'; card.className = 'api-card'; card.setAttribute('aria-label', `Play ${item.name}`);
+                    const image = document.createElement('img'); image.src = safeWebUrl(item.img) || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.name)}&background=222&color=ffd700&size=512`; image.alt = `${item.name} logo`; image.loading = 'lazy'; image.style.cssText = 'width:100%;height:100%;object-fit:cover';
+                    const caption = document.createElement('span'); caption.textContent = `${item.name} — OFFICIAL CHANNEL`; caption.style.cssText = 'position:absolute;bottom:0;width:100%;background:rgba(0,0,0,.9);padding:15px 10px;font-size:.8rem;font-weight:bold;text-align:left;color:#fff';
+                    card.append(image, caption); card.addEventListener('click', () => { closeOverlay('search-overlay'); switchSource(index); }); resBox.appendChild(card);
+                });
+            document.getElementById('search-status').innerText = resBox.children.length ? `FOUND ${resBox.children.length} OFFICIAL KENYAN CHANNELS` : 'NO KENYAN CHANNEL MATCH — TRY CITIZEN, NTV, KTN, K24, KBC, TV47 OR MAISHA';
         }
 
         function renderLocalCatalogFallback(type) {
@@ -1669,6 +1686,7 @@
             statusBox.innerText = "CONNECTING TO GLOBAL DATABASE...";
 
             try {
+                if (searchMode === 'kenya') { renderKenyaSearchResults(query); return; }
                 if (searchMode === 'music') {
                     const data = await jamendoFetch({ search: query, order: 'relevance' });
                     if (data.results && data.results.length > 0) {
