@@ -45,7 +45,7 @@ module.exports = function playerConfigHandler(req, res) {
     providerHosts,
     sources: values.map((template, index) => ({ template, index })).filter((source) => source.template).map(({ template, index }) => ({
       id: index === 0 ? 'vercel-primary' : `vercel-server-${index + 1}`,
-      label: index === 0 ? 'Vercel primary' : `Vercel Server ${index + 1}`,
+      label: index === 0 ? 'Primary' : `Server ${index + 1}`,
       template
     }))
   });

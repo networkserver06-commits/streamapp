@@ -163,7 +163,8 @@
             display: none; background: #000; z-index: 5;
         }
         #audio-player { width: min(88%, 760px); height: 72px; margin: auto; align-self: center; }
-        .player-status { position:absolute; z-index:15; bottom:10px; left:10px; right:10px; color:#eee; font:600 .78rem 'Source Code Pro', monospace; text-align:center; pointer-events:auto; background:rgba(0,0,0,.78); border:1px solid rgba(255,215,0,.22); border-radius:10px; padding:8px; }
+        .player-status { position:relative; z-index:15; width:100%; box-sizing:border-box; color:#eee; font:600 .78rem 'Source Code Pro', monospace; text-align:center; pointer-events:auto; background:rgba(0,0,0,.78); border:1px solid rgba(255,215,0,.22); border-radius:10px; padding:8px; margin:10px 0 0; }
+        .player-status.playing { display:none; }
         .source-switcher { display:none; gap:8px; flex-wrap:wrap; justify-content:center; width:100%; margin:10px 0 0; }
         .source-switcher .btn { min-height:38px; padding:8px 12px; font-size:.7rem; }
         .player-action { display:inline-flex; align-items:center; justify-content:center; min-height:36px; margin:6px 4px 0; padding:7px 12px; border:1px solid var(--primary); border-radius:8px; color:var(--primary); text-decoration:none; font:700 .72rem 'Orbitron',sans-serif; }
@@ -953,11 +954,11 @@
                 <div id="loader" class="loader"></div>
                 <div id="player"></div>
                 <audio id="audio-player" controls playsinline preload="metadata" aria-label="Audio player"></audio>
-                <div id="player-status" class="player-status" role="status" aria-live="polite">Choose a channel or paste a supported media link.</div>
                 <iframe id="movie-frame" referrerpolicy="no-referrer" allow="autoplay; encrypted-media; fullscreen" allowfullscreen frameborder="0"></iframe>
                 <iframe id="yt-frame" referrerpolicy="strict-origin-when-cross-origin" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen frameborder="0"></iframe>
                 <iframe id="game-frame" allowfullscreen></iframe>
             </div>
+            <div id="player-status" class="player-status" role="status" aria-live="polite">Choose a channel or paste a supported media link.</div>
             <div id="player-source-switcher" class="source-switcher" aria-label="Server or source selector"></div>
 
             <!-- PASTE & PLAY PANEL -->
@@ -1096,7 +1097,7 @@
             const custom = Array.isArray(runtime.sources) && runtime.sources.length ? runtime.sources : Array.isArray(saved) ? saved : [];
             const savedTemplate = localStorage.getItem('streamhd_player_template');
             const customTemplate = savedTemplate ? [{ id: 'custom', label: 'Custom approved source', template: savedTemplate }] : [];
-            const primary = runtime.primaryTemplate ? [{ id: 'runtime-primary', label: 'Runtime primary', template: runtime.primaryTemplate }] : [];
+            const primary = runtime.primaryTemplate ? [{ id: 'runtime-primary', label: 'Primary', template: runtime.primaryTemplate }] : [];
             return [...(custom.length ? custom : primary.length ? primary : DEFAULT_PLAYER_SOURCES), ...customTemplate];
         }
         async function loadVercelPlayerConfig() {
@@ -1342,7 +1343,9 @@
         function setPlayerStatus(message, actions = []) {
             const status = document.getElementById('player-status');
             if (!status) return;
-            status.replaceChildren(document.createTextNode(String(message || '')));
+            const text = String(message || '');
+            status.classList.toggle('playing', /^(Playing|Audio playing|Video playing|Live \/ HLS playing|Embedded page playing)/i.test(text) && actions.length === 0);
+            status.replaceChildren(document.createTextNode(text));
             for (const action of actions) {
                 const href = safeWebUrl(action && action.href);
                 if (!href) continue;
