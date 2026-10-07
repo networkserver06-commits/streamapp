@@ -1152,6 +1152,10 @@
             showToast('OFFICIAL YOUTUBE CHANNEL OPTIONS READY');
             return false;
         }
+        function youtubeChannelEmbedUrl(channelId) {
+            if (!/^UC[A-Za-z0-9_-]{22}$/.test(String(channelId || ''))) return '';
+            return `https://www.youtube-nocookie.com/embed/live_stream?channel=${encodeURIComponent(channelId)}&autoplay=1&rel=0&playsinline=1`;
+        }
         function hideAllPlayers() {
             if (activeHls) { activeHls.destroy(); activeHls = null; }
             ['player', 'audio-player', 'movie-frame', 'yt-frame', 'game-frame'].forEach(id => {
@@ -1536,8 +1540,18 @@
             let openedSource = true;
             if (ch.type === 'youtube') {
                 const frame = document.getElementById('yt-frame');
-                if (ch.channelId || safeWebUrl(ch.channelUrl)) {
-                    openedSource = youtubeChannelFallback(ch.name, ch.channelId || '', ch.channelUrl || '');
+                if (ch.channelId) {
+                    const embedUrl = youtubeChannelEmbedUrl(ch.channelId);
+                    if (embedUrl) {
+                        frame.style.display = 'block';
+                        frame.src = embedUrl;
+                        setPlayerStatus(`YouTube live channel: ${ch.name}. Playback appears here when the channel is broadcasting.`, youtubeChannelLinks(ch.channelId, ch.channelUrl || ''));
+                        showToast('OPENING YOUTUBE LIVE CHANNEL');
+                    } else {
+                        openedSource = youtubeChannelFallback(ch.name, '', ch.channelUrl || '');
+                    }
+                } else if (safeWebUrl(ch.channelUrl)) {
+                    openedSource = youtubeChannelFallback(ch.name, '', ch.channelUrl || '');
                 } else if (ch.playlistId) {
                     frame.style.display = 'block'; frame.src = `https://www.youtube-nocookie.com/embed/videoseries?list=${encodeURIComponent(ch.playlistId)}&autoplay=1&rel=0&playsinline=1`;
                     setPlayerStatus(`YouTube playlist: ${ch.name}. If embedding is restricted, open it on YouTube.`, [{ label: 'OPEN PLAYLIST ON YOUTUBE', href: `https://www.youtube.com/playlist?list=${encodeURIComponent(ch.playlistId)}` }]);
