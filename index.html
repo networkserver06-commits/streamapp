@@ -1676,7 +1676,7 @@
             const fullPlayButton = document.getElementById('det-play-btn');
             if (fullPlayButton) {
                 fullPlayButton.disabled = false;
-                fullPlayButton.title = hasCatalogPlayback(ch) ? 'Play the authorized full media source' : 'No authorized full media source is configured for this catalog item';
+                fullPlayButton.title = hasCatalogPlayback(ch) ? 'Play this item in the Stream HD player' : 'Play the first configured in-page source or official trailer';
             }
 
             document.getElementById('details-overlay').style.display = 'flex';
@@ -1743,15 +1743,37 @@
             } catch { setPlayerStatus(`Selected ${ch.name} — Season ${seasonNumber}, Episode ${episodeNumber}. Episode video metadata is unavailable.`); }
         }
 
-        function playCurrentDetails() {
+        async function playCurrentDetails() {
             const ch = CHANNELS[activeDetailsEntry];
-            if (ch && ch.type === 'cinema' && !hasCatalogPlayback(ch)) {
-                setPlayerStatus(`Full playback is not configured for ${ch.name}. Add a licensed MP4, WebM, MOV, or HLS URL in Admin.`);
-                showToast('ADD A LICENSED FULL-MEDIA URL IN ADMIN');
+            if (!ch) return;
+            const context = { ...activePlayerContext, tmdb_id: ch.tmdbId, type: ch.cType || 'movie', title: ch.name };
+            const configuredSources = renderPlayerSources(context) || [];
+            closeOverlay('details-overlay');
+            if (configuredSources.length) {
+                playConfiguredSource(configuredSources[0], context);
                 return;
             }
-            closeOverlay('details-overlay');
-            switchSource(activeDetailsEntry);
+            if (hasCatalogPlayback(ch)) {
+                switchSource(activeDetailsEntry);
+                return;
+            }
+            if (ch.tmdbId && (ch.cType === 'movie' || ch.cType === 'tv')) {
+                try {
+                    const data = await tmdbFetch(`${ch.cType}/${encodeURIComponent(ch.tmdbId)}/videos`);
+                    const trailer = (data.results || []).find(video => video.site === 'YouTube' && video.type === 'Trailer')
+                        || (data.results || []).find(video => video.site === 'YouTube' && video.type === 'Clip');
+                    if (trailer && trailer.key) {
+                        const trailerContext = { ...context, title: `${ch.name} trailer`, youtube_key: trailer.key };
+                        const template = 'https://www.youtube-nocookie.com/embed/{youtube_key}?autoplay=1&rel=0&playsinline=1';
+                        playConfiguredSource({ id: 'youtube', label: 'Official YouTube Trailer', template, url: expandPlayerTemplate(template, trailerContext) }, trailerContext);
+                        return;
+                    }
+                } catch (error) {
+                    console.warn('TMDB video fallback unavailable', error);
+                }
+            }
+            setPlayerStatus(`No in-page source is available for ${ch.name}. Add an authorized provider template in Vercel or Admin, then try again.`);
+            showToast('NO IN-PAGE SOURCE AVAILABLE');
         }
 
         async function trailerCurrentDetails() {
@@ -2074,8 +2096,8 @@
                 if (hasCatalogPlayback(ch)) {
                     playDirectMedia(ch.url, ch.name);
                 } else {
-                    setPlayerStatus(`Catalog details loaded: ${ch.name}. Full playback is not configured.`);
-                    showToast('FULL PLAYBACK IS NOT CONFIGURED'); openedSource = false;
+                    setPlayerStatus(`Catalog details loaded: ${ch.name}. Open details to choose an in-page source.`);
+                    openedSource = false;
                 }
             } else if (ch.type === 'iframe' || ch.type === 'game') {
                 const frame = document.getElementById('game-frame'); const url = safeWebUrl(ch.url);
