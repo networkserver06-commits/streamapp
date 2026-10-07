@@ -1472,9 +1472,22 @@
         function chooseProviderRegion(results) {
             if (!results || typeof results !== 'object') return null;
             const preferred = [getWatchRegion(), 'KE', 'US', 'GB', 'CA', 'AU', 'ZA', 'NG'];
-            for (const region of preferred) if (results[region]) return { code: region, data: results[region] };
-            const first = Object.entries(results).find(([, value]) => value && typeof value === 'object');
-            return first ? { code: first[0], data: first[1] } : null;
+            const score = value => {
+                if (!value || typeof value !== 'object') return -1;
+                if (Array.isArray(value.free) && value.free.length) return 100;
+                if (Array.isArray(value.ads) && value.ads.length) return 90;
+                if (Array.isArray(value.flatrate) && value.flatrate.length) return 70;
+                if (Array.isArray(value.rent) && value.rent.length) return 30;
+                if (Array.isArray(value.buy) && value.buy.length) return 20;
+                return 0;
+            };
+            const ranked = preferred.map((region, order) => ({ code: region, data: results[region], score: score(results[region]), order })).filter(item => item.data);
+            const preferredFree = ranked.filter(item => item.score >= 70).sort((a, b) => b.score - a.score || a.order - b.order)[0];
+            if (preferredFree) return preferredFree;
+            const globalFree = Object.entries(results).map(([code, data]) => ({ code, data, score: score(data) })).filter(item => item.score >= 70).sort((a, b) => b.score - a.score)[0];
+            if (globalFree) return globalFree;
+            const first = ranked[0] || Object.entries(results).map(([code, data]) => ({ code, data, score: score(data) })).find(item => item.data && item.score >= 0);
+            return first || null;
         }
 
         async function loadWatchProviders(ch, entryIndex) {
@@ -1493,9 +1506,10 @@
                     list.textContent = 'No official streaming providers are listed in the available regions.';
                     return;
                 }
-                const groups = [
-                    ['free', 'FREE'], ['ads', 'FREE WITH ADS'], ['flatrate', 'SUBSCRIPTION'], ['rent', 'RENT'], ['buy', 'BUY']
-                ];
+                const hasFreeOrSubscription = ['free', 'ads', 'flatrate'].some(key => Array.isArray(regionData[key]) && regionData[key].length);
+                const groups = hasFreeOrSubscription
+                    ? [['free', 'FREE'], ['ads', 'FREE WITH ADS'], ['flatrate', 'SUBSCRIPTION']]
+                    : [['rent', 'RENT'], ['buy', 'BUY']];
                 const seen = new Set();
                 const providers = [];
                 groups.forEach(([key, label]) => (regionData[key] || []).forEach(provider => {
@@ -1509,7 +1523,7 @@
                     return;
                 }
                 const intro = document.createElement('div');
-                intro.textContent = 'Choose an official provider. Availability and pricing are supplied by TMDB/JustWatch.';
+                intro.textContent = hasFreeOrSubscription ? 'Free and low-friction official options are shown first. Availability is supplied by TMDB/JustWatch.' : 'No free or subscription option is listed here; these official rent/buy options are the remaining matches.';
                 intro.style.cssText = 'margin-bottom:10px;color:#aaa;line-height:1.4';
                 list.appendChild(intro);
                 const grid = document.createElement('div');
