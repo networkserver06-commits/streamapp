@@ -65,7 +65,7 @@ NEXT_PUBLIC_SERVER_2_URL=https://archive.org/embed/{archive_id}
 NEXT_PUBLIC_SERVER_3_URL=https://player.vimeo.com/video/{tmdb_id}
 ```
 
-An empty value is allowed. After saving or changing the variables, redeploy the project. The app requests `/api/player-config` at startup, and only approved YouTube, Internet Archive, Vimeo, or authorized direct-media hosts are accepted. These values are URLs, not secrets; do not place API keys in them.
+An empty value is allowed. After saving or changing the variables, redeploy the project. The app requests `/api/player-config` at startup, detects each valid provider URL automatically, and adds it to the in-page source selector. These values are URLs, not secrets; do not place API keys in them.
 
 If you own or are authorized to use another provider, add its exact hostname to a comma-separated allowlist; do not add a gateway you do not control or have permission to embed:
 
@@ -73,9 +73,9 @@ If you own or are authorized to use another provider, add its exact hostname to 
 NEXT_PUBLIC_ALLOWED_PLAYER_HOSTS=player.your-domain.com,cdn.your-domain.com
 ```
 
-The allowlist accepts exact hostnames only, not wildcards. The custom host is then available to the three player template variables above.
+The allowlist accepts exact hostnames only, not wildcards. The extra variable is optional when the provider URL is already in one of the three server variables; those provider hosts are detected automatically. The Admin safety toggle must be enabled before custom provider hosts are displayed.
 
-The Admin panel includes **ENABLE CUSTOM PROVIDER HOSTS**, which is stored locally and defaults to **OFF**. Built-in official YouTube, Internet Archive, and Vimeo sources continue to work; turning the control on is required before the app will display an explicitly allowlisted custom Vercel host.
+The Admin panel includes **ENABLE CUSTOM PROVIDER HOSTS**, which is stored locally and defaults to **OFF**. Built-in official YouTube, Internet Archive, and Vimeo sources continue to work; turning the control on is required before the app will display a custom provider detected from Vercel.
 
 Common audio formats include MP3, M4A, AAC, WAV, OGG, OPUS, and FLAC. Common video formats include MP4, WebM, MOV, and HLS; actual support varies by device. DRM playback and MPEG-DASH are not implemented.
 
