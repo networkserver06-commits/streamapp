@@ -12,11 +12,11 @@ A responsive single-page media player for sources that you own or are authorized
 
 ## Deploy
 
-Deploy the repository root to Vercel. Keep `index.html`, `vercel.json`, `manifest.json`, `sw.js`, and `icon.svg` at the root. The service worker caches the app shell only; media streams remain online.
+Deploy the repository root to Vercel. Keep `index.html`, `api/`, `vercel.json`, `manifest.json`, `sw.js`, and `icon.svg` at the root. The service worker caches the app shell only; media streams remain online.
 
 ## TMDB setup
 
-Open **Admin** in the browser, set a local admin password, enter your own TMDB API key, and save it. The key is stored only in that browser. Since client-side keys are visible to site visitors, restrict the key at TMDB; a server-side API proxy is recommended for a public production deployment. Search and title metadata remain disabled until a valid key is supplied.
+In Vercel, open **Project Settings → Environment Variables**, add `TMDB_API_KEY` with your TMDB v3 API key for Production and Preview, then redeploy. The `/api/tmdb/*` serverless proxy injects the key on the server, so it is not sent to browsers. Search and title metadata become available after the redeploy. The Admin key field remains an optional local-development fallback.
 
 The TMDB key previously embedded in the public source should be revoked/rotated before deployment.
 

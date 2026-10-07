@@ -873,7 +873,7 @@
                 <input type="url" id="ad-playback-url" placeholder="Your licensed/owned MP4, M3U8, or audio URL">
             </div>
             <div class="admin-group">
-                <label>TMDB API KEY (STORED ONLY IN THIS BROWSER)</label>
+                <label>TMDB API KEY (OPTIONAL LOCAL FALLBACK)</label>
                 <input type="password" id="tmdb-api-key-input" autocomplete="off" placeholder="Paste your own TMDB API key">
                 <button class="btn" style="margin-top:8px;width:100%;" onclick="saveTmdbKey()">SAVE TMDB KEY</button>
             </div>
@@ -1017,11 +1017,16 @@
         function getTmdbApiKey() { return (window.STREAMHD_CONFIG && window.STREAMHD_CONFIG.tmdbApiKey) || localStorage.getItem('streamhd_tmdb_api_key') || ''; }
         async function tmdbFetch(path, params = {}) {
             const apiKey = getTmdbApiKey();
-            if (!apiKey) throw new Error('TMDB_API_KEY_MISSING');
-            const url = new URL(`https://api.themoviedb.org/3/${path.replace(/^\//, '')}`);
-            url.search = new URLSearchParams({ ...params, api_key: apiKey }).toString();
+            const cleanPath = path.replace(/^\//, '');
+            const url = apiKey
+                ? new URL(`https://api.themoviedb.org/3/${cleanPath}`)
+                : new URL(`/api/tmdb/${cleanPath}`, window.location.origin);
+            url.search = new URLSearchParams(apiKey ? { ...params, api_key: apiKey } : params).toString();
             const response = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
-            if (!response.ok) throw new Error(`TMDB_HTTP_${response.status}`);
+            if (!response.ok) {
+                const body = await response.json().catch(() => ({}));
+                throw new Error(body.error || `TMDB_HTTP_${response.status}`);
+            }
             return response.json();
         }
         function safeWebUrl(value) {
@@ -1397,8 +1402,7 @@
             document.getElementById('search-status').innerText = 'LOADING TRENDING TODAY...';
             document.getElementById('search-overlay').style.display = 'flex';
 
-            if (getTmdbApiKey()) fetchTrending(type);
-            else document.getElementById('search-status').innerText = 'TMDB API key not configured. Add window.STREAMHD_CONFIG.tmdbApiKey before this script.';
+            fetchTrending(type);
             setTimeout(() => document.getElementById('search-input').focus(), 100);
         }
 
@@ -1410,7 +1414,7 @@
                     document.getElementById('search-status').innerText = '🔥 TRENDING TODAY';
                     renderAPIResults(data.results, type);
                 }
-            } catch(e) { document.getElementById('search-status').innerText = e.message === 'TMDB_API_KEY_MISSING' ? 'Add a TMDB key in window.STREAMHD_CONFIG.tmdbApiKey to enable catalog search.' : 'Trending failed to load. Check the API key or try again.'; }
+            } catch(e) { document.getElementById('search-status').innerText = e.message === 'TMDB_API_KEY_MISSING' ? 'TMDB is not configured. Add TMDB_API_KEY in Vercel Project Settings, then redeploy.' : 'Trending failed to load. Check the API key or try again.'; }
         }
 
         function startVoiceSearch() {
@@ -1444,7 +1448,7 @@
                     statusBox.innerText = `FOUND ${data.results.length} RESULTS`;
                     renderAPIResults(data.results, searchMode);
                 } else { statusBox.innerText = "NO RESULTS FOUND."; }
-            } catch (e) { statusBox.innerText = e.message === 'TMDB_API_KEY_MISSING' ? 'TMDB API key not configured. Set window.STREAMHD_CONFIG.tmdbApiKey before this script.' : `API request failed (${e.message}). Check the key or network and retry.`; }
+            } catch (e) { statusBox.innerText = e.message === 'TMDB_API_KEY_MISSING' ? 'TMDB is not configured. Add TMDB_API_KEY in Vercel Project Settings, then redeploy.' : `API request failed (${e.message}). Check the key or network and retry.`; }
         }
 
         function renderAPIResults(results, type) {
