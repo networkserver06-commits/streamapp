@@ -28,6 +28,8 @@ Create an application in the [Jamendo developer portal](https://devportal.jamend
 
 Use the paste panel to play YouTube, audio, video, or HLS links in the embedded player. **Download** uses a browser-integrated blob download for Jamendo tracks and direct media sources that permit CORS; embedded video and live HLS streams remain playback-only. Jamendo tracks include artist attribution and a link back to their Jamendo page. Direct source URLs must be absolute HTTP(S) links and work only when supported by the browser, the stream's codecs, and its CORS policy. For catalog items, add the TMDB ID for metadata and add an authorized direct MP4, WebM, MOV, or HLS URL in the optional playback field to enable **PLAY FULL**. TMDB does not provide full movie or series files.
 
+Movie and series details also load the official TMDB Watch Providers list for Kenya (`KE`). Free, ad-supported, subscription, rent, and buy providers are grouped in an inline selector and link to the official TMDB/JustWatch availability page. These provider records do not include embeddable streams; full in-site playback still requires an authorized source or a provider SDK that explicitly permits embedding.
+
 Common audio formats include MP3, M4A, AAC, WAV, OGG, OPUS, and FLAC. Common video formats include MP4, WebM, MOV, and HLS; actual support varies by device. DRM playback and MPEG-DASH are not implemented.
 
 ## Access-control note

@@ -810,6 +810,10 @@
                 <h1 id="det-title" class="details-title">TITLE</h1>
                 <div id="det-meta" class="details-meta">2026 | ⭐ 8.5/10</div>
                 <div id="det-desc" class="details-desc">Loading description...</div>
+                <div id="provider-panel" style="margin:18px 0;padding:14px;border:1px solid rgba(255,215,0,.35);border-radius:12px;background:rgba(0,0,0,.28);">
+                    <div style="font-family:'Orbitron';color:var(--primary);font-size:.78rem;letter-spacing:1px;margin-bottom:8px;">LEGAL WATCH OPTIONS — KENYA</div>
+                    <div id="provider-list" style="font-size:.8rem;color:#aaa;">Loading official providers...</div>
+                </div>
 
                 <div class="btn-grid" style="grid-template-columns: 1fr 1fr;">
                     <button id="det-play-btn" class="btn btn-primary" onclick="playCurrentDetails()">▶️ PLAY FULL</button>
@@ -1396,6 +1400,60 @@
             return Boolean(url && (mediaKind(url) || youtubeTarget(url)));
         }
 
+        function getWatchRegion() {
+            return String(localStorage.getItem('streamhd_region') || 'KE').trim().toUpperCase().slice(0, 2) || 'KE';
+        }
+
+        async function loadWatchProviders(ch, entryIndex) {
+            const list = document.getElementById('provider-list');
+            if (!list) return;
+            list.textContent = 'Loading official providers...';
+            try {
+                const data = await tmdbFetch(`${ch.cType}/${encodeURIComponent(ch.tmdbId)}/watch/providers`);
+                if (activeDetailsEntry !== entryIndex) return;
+                const region = getWatchRegion();
+                const regionData = data.results && (data.results[region] || data.results.KE);
+                if (!regionData) {
+                    list.textContent = `No official streaming providers are listed for ${region}.`;
+                    return;
+                }
+                const groups = [
+                    ['free', 'FREE'], ['ads', 'FREE WITH ADS'], ['flatrate', 'SUBSCRIPTION'], ['rent', 'RENT'], ['buy', 'BUY']
+                ];
+                const seen = new Set();
+                const providers = [];
+                groups.forEach(([key, label]) => (regionData[key] || []).forEach(provider => {
+                    const id = String(provider.provider_id || provider.provider_name);
+                    if (seen.has(id)) return;
+                    seen.add(id); providers.push({ ...provider, label });
+                }));
+                list.replaceChildren();
+                if (!providers.length) {
+                    list.textContent = `No free or official providers are listed for ${region}.`;
+                    return;
+                }
+                const intro = document.createElement('div');
+                intro.textContent = 'Choose an official provider. Availability and pricing are supplied by TMDB/JustWatch.';
+                intro.style.cssText = 'margin-bottom:10px;color:#aaa;line-height:1.4';
+                list.appendChild(intro);
+                const grid = document.createElement('div');
+                grid.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap';
+                providers.forEach(provider => {
+                    const link = document.createElement('a');
+                    link.href = regionData.link || '#'; link.target = '_blank'; link.rel = 'noopener noreferrer';
+                    link.textContent = `${provider.label}: ${provider.provider_name}`;
+                    link.style.cssText = 'display:inline-flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid rgba(0,243,255,.55);border-radius:8px;color:#00f3ff;text-decoration:none;font-size:.72rem';
+                    if (provider.logo_path) {
+                        const logo = document.createElement('img'); logo.src = `https://image.tmdb.org/t/p/w92${provider.logo_path}`; logo.alt = ''; logo.width = 22; logo.height = 22; logo.style.borderRadius = '5px'; link.prepend(logo);
+                    }
+                    grid.appendChild(link);
+                });
+                list.appendChild(grid);
+            } catch (error) {
+                if (activeDetailsEntry === entryIndex) list.textContent = 'Official provider availability is temporarily unavailable.';
+            }
+        }
+
         async function openDetails(idx) {
             const ch = CHANNELS[idx];
             if(ch.reqVip && !isVIP) return showToast('VIP ACCESS REQUIRED');
@@ -1407,6 +1465,7 @@
             document.getElementById('det-img').src = ch.img;
             document.getElementById('det-meta').innerText = "Loading data...";
             document.getElementById('det-desc').innerText = "Connecting to global database...";
+            document.getElementById('provider-list').innerText = 'Loading official providers...';
             const fullPlayButton = document.getElementById('det-play-btn');
             if (fullPlayButton) {
                 fullPlayButton.disabled = false;
@@ -1414,6 +1473,7 @@
             }
 
             document.getElementById('details-overlay').style.display = 'flex';
+            loadWatchProviders(ch, idx);
 
             try {
                 const data = await tmdbFetch(`${ch.cType}/${encodeURIComponent(ch.tmdbId)}`);
