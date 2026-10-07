@@ -915,7 +915,7 @@
                     <input type="checkbox" id="custom-provider-safety-toggle" onchange="toggleCustomProviderSafety(this.checked)">
                     ENABLE CUSTOM PROVIDER HOSTS
                 </label>
-                <small style="display:block;color:#aaa;margin-top:6px;line-height:1.4;">Default: OFF. When enabled, the exact domains in NEXT_PUBLIC_ALLOWED_PLAYER_HOSTS and matching custom templates may appear in the source selector.</small>
+                <small style="display:block;color:#aaa;margin-top:6px;line-height:1.4;">Default: OFF. When enabled, any valid HTTP(S) provider template from Vercel or Admin may appear in the source selector. The provider must still permit iframe embedding.</small>
             </div>
             <div style="display: flex; gap: 10px; margin-top: 30px;">
                 <button class="btn btn-primary" style="flex:1;" onclick="adminSaveContent()">💾 ADD</button>
@@ -1144,6 +1144,7 @@
             try {
                 const host = new URL(url).hostname.toLowerCase().replace(/^www\./, '');
                 const runtimeConfig = window.STREAMHD_PLAYER_CONFIG && typeof window.STREAMHD_PLAYER_CONFIG === 'object' ? window.STREAMHD_PLAYER_CONFIG : {};
+                if (customProviderSafetyEnabled()) return Boolean(host);
                 const configuredHosts = customProviderSafetyEnabled() ? [...(runtimeConfig.allowedHosts || []), ...(runtimeConfig.providerHosts || [])] : [];
                 return host === 'youtube.com' || host.endsWith('.youtube.com') || host === 'youtube-nocookie.com' || host === 'archive.org' || host.endsWith('.archive.org') || host === 'vimeo.com' || host === 'player.vimeo.com' || configuredHosts.includes(host);
             } catch { return false; }

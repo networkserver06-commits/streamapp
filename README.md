@@ -73,9 +73,9 @@ If you own or are authorized to use another provider, add its exact hostname to 
 NEXT_PUBLIC_ALLOWED_PLAYER_HOSTS=player.your-domain.com,cdn.your-domain.com
 ```
 
-The allowlist accepts exact hostnames only, not wildcards. The extra variable is optional when the provider URL is already in one of the three server variables; those provider hosts are detected automatically. The Admin safety toggle must be enabled before custom provider hosts are displayed.
+The extra variable is optional when the provider URL is already in one of the three server variables; those provider hosts are detected automatically. The Admin safety toggle must be enabled before custom provider hosts are displayed. When enabled, the app accepts any valid HTTP(S) provider domain from these templates; the remote provider must still allow iframe embedding and you are responsible for its authorization and content rights.
 
-The Admin panel includes **ENABLE CUSTOM PROVIDER HOSTS**, which is stored locally and defaults to **OFF**. Built-in official YouTube, Internet Archive, and Vimeo sources continue to work; turning the control on is required before the app will display a custom provider detected from Vercel.
+The Admin panel includes **ENABLE CUSTOM PROVIDER HOSTS**, which is stored locally and defaults to **OFF**. Built-in official YouTube, Internet Archive, and Vimeo sources continue to work; turning the control on opts into any valid HTTP(S) custom provider detected from Vercel or entered in Admin.
 
 Common audio formats include MP3, M4A, AAC, WAV, OGG, OPUS, and FLAC. Common video formats include MP4, WebM, MOV, and HLS; actual support varies by device. DRM playback and MPEG-DASH are not implemented.
 
