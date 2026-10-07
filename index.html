@@ -812,7 +812,7 @@
                 <div id="det-desc" class="details-desc">Loading description...</div>
 
                 <div class="btn-grid" style="grid-template-columns: 1fr 1fr;">
-                    <button class="btn btn-primary" onclick="playCurrentDetails()">▶️ PLAY NOW</button>
+                    <button class="btn btn-primary" onclick="playCurrentDetails()">▶️ PLAY / TRAILER</button>
                     <button class="btn" style="border-color: #00f3ff; color: #00f3ff;" onclick="trailerCurrentDetails()">📺 TRAILER</button>
                     <button class="btn" onclick="shareCurrentDetails()">🔗 SHARE APP</button>
                     <button class="btn" style="border-color: #ff3131; color: #ff3131;" onclick="closeOverlay('details-overlay')">CLOSE</button>
@@ -1366,6 +1366,8 @@
         }
 
         function playCurrentDetails() {
+            const ch = CHANNELS[activeDetailsEntry];
+            if (ch && ch.type === 'cinema' && !mediaKind(safeWebUrl(ch.url))) return trailerCurrentDetails();
             closeOverlay('details-overlay');
             switchSource(activeDetailsEntry);
         }
@@ -1377,7 +1379,8 @@
                 const data = await tmdbFetch(`${ch.cType}/${encodeURIComponent(ch.tmdbId)}/videos`);
                 if(data.results && data.results.length > 0) {
                     const trailer = data.results.find(v => v.type === "Trailer") || data.results[0];
-                    window.open(`https://www.youtube.com/watch?v=${trailer.key}`, '_blank');
+                    closeOverlay('details-overlay');
+                    playDirectMedia(`https://www.youtube.com/watch?v=${encodeURIComponent(trailer.key)}`, `${ch.name} trailer`);
                 } else { showToast("TRAILER NOT FOUND"); }
             } catch(e) { showToast("ERROR FETCHING TRAILER"); }
         }
@@ -1465,7 +1468,7 @@
                 card.append(image, caption);
                 card.addEventListener('click', () => {
                     const entry = { name: title.toUpperCase(), type: 'cinema', cType: type, tmdbId: item.id, category: type, img, watched: false, fav: false, reqVip: false };
-                    CHANNELS.unshift(entry); save(); closeSearch(); switchSource(0);
+                    CHANNELS.unshift(entry); save(); closeSearch(); activeDetailsEntry = 0; openDetails(0);
                 });
                 resBox.appendChild(card);
             });
@@ -1567,8 +1570,8 @@
                 if (safeWebUrl(ch.url) && mediaKind(safeWebUrl(ch.url))) {
                     playDirectMedia(ch.url, ch.name);
                 } else {
-                    setPlayerStatus(`Catalog metadata only: ${ch.name}. Add an authorized playback URL in Admin, or use OFFICIAL SOURCE to find licensed watch options.`);
-                    showToast('NO PLAYBACK URL — USE OFFICIAL SOURCE FOR WATCH OPTIONS'); openedSource = false;
+                    setPlayerStatus(`Catalog item: ${ch.name}. Open its details and choose PLAY TRAILER, or add an authorized playback URL in Admin.`);
+                    showToast('OPEN DETAILS TO PLAY THE TRAILER'); openedSource = false;
                 }
             } else if (ch.type === 'iframe' || ch.type === 'game') {
                 const frame = document.getElementById('game-frame'); const url = safeWebUrl(ch.url);
