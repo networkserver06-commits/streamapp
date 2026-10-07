@@ -1068,10 +1068,11 @@
         }
         function mediaKind(url) {
             try {
-                const pathname = new URL(url).pathname.toLowerCase();
-                if (/\.(mp3|mp31|mp32|m4a|aac|wav|ogg|oga|opus|flac)$/.test(pathname)) return 'audio';
-                if (/\.(m3u8)$/.test(pathname)) return 'hls';
-                if (/\.(mp4|m4v|webm|mov|ogv|mkv)$/.test(pathname)) return 'video';
+                const parsed = new URL(url);
+                const source = `${parsed.pathname}${parsed.search}`.toLowerCase();
+                if (/\.(mp3|mp31|mp32|m4a|aac|wav|ogg|oga|opus|flac)(?:$|[?#&])/.test(source) || /(?:audio|format)=(?:mp3|mp31|mp32|m4a|aac|wav|ogg|oga|opus|flac)(?:$|&)/.test(source)) return 'audio';
+                if (/\.m3u8(?:$|[?#&])/.test(source) || /(?:url|format|type)=[^&]*m3u8/.test(source)) return 'hls';
+                if (/\.(mp4|m4v|webm|mov|ogv|mkv)(?:$|[?#&])/.test(source) || /(?:video|format|type)=(?:mp4|m4v|webm|mov|ogv|mkv)(?:$|&)/.test(source)) return 'video';
             } catch {}
             return '';
         }
@@ -1320,6 +1321,7 @@
             const img = safeWebUrl(document.getElementById('ad-img').value.trim());
             const playbackUrl = safeWebUrl(document.getElementById('ad-playback-url').value.trim());
             if (!title || !data) return showToast('TITLE AND DATA REQUIRED');
+            if ((type === 'movie' || type === 'tv') && playbackUrl && !mediaKind(playbackUrl) && !youtubeTarget(playbackUrl)) return showToast('FULL PLAYBACK URL MUST BE MP4, WEBM, MOV, OR M3U8');
             const entry = { name: title.slice(0, 120), category: type, type, img, watched: false, fav: false, reqVip: type === 'game' || type === 'iframe' };
             if (type === 'movie' || type === 'tv') { entry.type = 'cinema'; entry.cType = type; entry.tmdbId = data; entry.url = playbackUrl; entry.category = type; }
             else if (type === 'youtube' || type === 'music') {
@@ -1406,8 +1408,8 @@
             document.getElementById('det-desc').innerText = "Connecting to global database...";
             const fullPlayButton = document.getElementById('det-play-btn');
             if (fullPlayButton) {
-                fullPlayButton.disabled = !hasCatalogPlayback(ch);
-                fullPlayButton.title = hasCatalogPlayback(ch) ? 'Play the authorized full media source' : 'Full playback is not configured for this catalog item';
+                fullPlayButton.disabled = false;
+                fullPlayButton.title = hasCatalogPlayback(ch) ? 'Play the authorized full media source' : 'No authorized full media source is configured for this catalog item';
             }
 
             document.getElementById('details-overlay').style.display = 'flex';
@@ -1429,8 +1431,8 @@
         function playCurrentDetails() {
             const ch = CHANNELS[activeDetailsEntry];
             if (ch && ch.type === 'cinema' && !hasCatalogPlayback(ch)) {
-                setPlayerStatus(`Full playback is not configured for ${ch.name}.`);
-                showToast('FULL PLAYBACK IS NOT CONFIGURED');
+                setPlayerStatus(`Full playback is not configured for ${ch.name}. Add a licensed MP4, WebM, MOV, or HLS URL in Admin.`);
+                showToast('ADD A LICENSED FULL-MEDIA URL IN ADMIN');
                 return;
             }
             closeOverlay('details-overlay');
