@@ -953,7 +953,7 @@
                 <div id="player-status" class="player-status" role="status" aria-live="polite">Choose a channel or paste a supported media link.</div>
                 <div id="player-source-switcher" aria-label="Server or source selector" style="display:none;gap:8px;flex-wrap:wrap;justify-content:center;margin:10px 0;"></div>
                 <iframe id="movie-frame" referrerpolicy="no-referrer" allow="autoplay; encrypted-media; fullscreen" allowfullscreen frameborder="0"></iframe>
-                <iframe id="yt-frame" allow="autoplay; encrypted-media; fullscreen" allowfullscreen frameborder="0"></iframe>
+                <iframe id="yt-frame" referrerpolicy="strict-origin-when-cross-origin" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen frameborder="0"></iframe>
                 <iframe id="game-frame" allowfullscreen></iframe>
             </div>
 
@@ -1369,7 +1369,19 @@
         }
         function youtubeChannelEmbedUrl(channelId) {
             if (!/^UC[A-Za-z0-9_-]{22}$/.test(String(channelId || ''))) return '';
-            return `https://www.youtube-nocookie.com/embed/live_stream?channel=${encodeURIComponent(channelId)}&autoplay=1&rel=0&playsinline=1`;
+            return youtubeEmbedUrl('live_stream', { channel: channelId });
+        }
+        function youtubeEmbedUrl(target, params = {}) {
+            const query = new URLSearchParams({
+                autoplay: '1',
+                rel: '0',
+                playsinline: '1',
+                enablejsapi: '1',
+                modestbranding: '1',
+                ...params,
+                origin: window.location.origin
+            });
+            return `https://www.youtube-nocookie.com/embed/${target}?${query.toString()}`;
         }
         function hideAllPlayers() {
             if (activeHls) { activeHls.destroy(); activeHls = null; }
@@ -1390,13 +1402,13 @@
             if (yt && yt.id) {
                 const frame = document.getElementById('yt-frame');
                 frame.style.display = 'block';
-                frame.src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(yt.id)}?autoplay=1&rel=0&playsinline=1`;
+                frame.src = youtubeEmbedUrl(encodeURIComponent(yt.id));
                 setPlayerStatus(`Playing: ${title}`);
                 showToast('OPENING VIDEO'); return true;
             }
             if (yt && yt.playlist) {
                 const frame = document.getElementById('yt-frame'); frame.style.display = 'block';
-                frame.src = `https://www.youtube-nocookie.com/embed/videoseries?list=${encodeURIComponent(yt.playlist)}&autoplay=1&rel=0&playsinline=1`;
+                frame.src = youtubeEmbedUrl('videoseries', { list: yt.playlist });
                 setPlayerStatus(`Playing playlist: ${title}`);
                 showToast('OPENING PLAYLIST'); return true;
             }
@@ -2070,7 +2082,7 @@
                 const frame = document.getElementById('yt-frame');
                 if (ch.liveVideoId) {
                     frame.style.display = 'block';
-                    frame.src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(ch.liveVideoId)}?autoplay=1&rel=0&playsinline=1`;
+                    frame.src = youtubeEmbedUrl(encodeURIComponent(ch.liveVideoId));
                     setPlayerStatus(`Playing official live broadcast: ${ch.name}`);
                     showToast('OPENING OFFICIAL LIVE BROADCAST');
                 } else if (ch.channelId) {
@@ -2086,10 +2098,10 @@
                 } else if (safeWebUrl(ch.channelUrl)) {
                     openedSource = youtubeChannelFallback(ch.name, '', ch.channelUrl || '');
                 } else if (ch.playlistId) {
-                    frame.style.display = 'block'; frame.src = `https://www.youtube-nocookie.com/embed/videoseries?list=${encodeURIComponent(ch.playlistId)}&autoplay=1&rel=0&playsinline=1`;
+                    frame.style.display = 'block'; frame.src = youtubeEmbedUrl('videoseries', { list: ch.playlistId });
                     setPlayerStatus(`Playing playlist: ${ch.name}`);
                 } else if (ch.id) {
-                    frame.style.display = 'block'; frame.src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(ch.id)}?autoplay=1&rel=0&playsinline=1`;
+                    frame.style.display = 'block'; frame.src = youtubeEmbedUrl(encodeURIComponent(ch.id));
                     setPlayerStatus(`Playing: ${ch.name}`);
                 } else { setPlayerStatus('This item has no valid playable source.'); openedSource = false; }
             } else if (ch.type === 'cinema') {
