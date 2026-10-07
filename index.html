@@ -1034,8 +1034,9 @@
             const cleanPath = path.replace(/^\//, '');
             const url = apiKey
                 ? new URL(`https://api.themoviedb.org/3/${cleanPath}`)
-                : new URL(`/api/tmdb/${cleanPath}`, window.location.origin);
+                : new URL('/api/tmdb', window.location.origin);
             url.search = new URLSearchParams(apiKey ? { ...params, api_key: apiKey } : params).toString();
+            if (!apiKey) url.searchParams.set('path', cleanPath);
             const response = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
             if (!response.ok) {
                 const body = await response.json().catch(() => ({}));
@@ -1044,8 +1045,8 @@
             return response.json();
         }
         async function jamendoFetch(params = {}) {
-            const url = new URL('/api/jamendo/tracks', window.location.origin);
-            url.search = new URLSearchParams({ limit: 24, audioformat: 'mp32', imagesize: 300, include: 'licenses', ...params }).toString();
+            const url = new URL('/api/jamendo', window.location.origin);
+            url.search = new URLSearchParams({ path: 'tracks', limit: 24, audioformat: 'mp32', imagesize: 300, include: 'licenses', ...params }).toString();
             const response = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
             if (!response.ok) {
                 const body = await response.json().catch(() => ({}));
