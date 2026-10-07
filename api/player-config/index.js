@@ -5,6 +5,17 @@ const ALLOWED_ENV_KEYS = [
 ];
 
 function isApprovedTemplate(template) {
+  return isAllowedTemplate(template, getExtraHosts());
+}
+
+function getExtraHosts() {
+  return String(process.env.NEXT_PUBLIC_ALLOWED_PLAYER_HOSTS || '')
+    .split(',')
+    .map((host) => host.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, ''))
+    .filter((host) => /^[a-z0-9.-]+$/.test(host));
+}
+
+function isAllowedTemplate(template, extraHosts) {
   try {
     const sample = template
       .replace(/\{youtube_key\}/g, 'sample')
@@ -16,7 +27,8 @@ function isApprovedTemplate(template) {
     const host = new URL(sample).hostname.toLowerCase().replace(/^www\./, '');
     return host === 'youtube.com' || host.endsWith('.youtube.com') || host === 'youtube-nocookie.com'
       || host === 'archive.org' || host.endsWith('.archive.org')
-      || host === 'vimeo.com' || host === 'player.vimeo.com';
+      || host === 'vimeo.com' || host === 'player.vimeo.com'
+      || extraHosts.includes(host);
   } catch {
     return false;
   }
@@ -30,10 +42,12 @@ module.exports = function playerConfigHandler(req, res) {
 
   const values = ALLOWED_ENV_KEYS.map((key) => String(process.env[key] || '').trim())
     .map((template) => isApprovedTemplate(template) ? template : '');
+  const allowedHosts = getExtraHosts();
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   return res.status(200).json({
     primaryTemplate: values[0] || '',
+    allowedHosts,
     sources: values.map((template, index) => ({ template, index })).filter((source) => source.template).map(({ template, index }) => ({
       id: index === 0 ? 'vercel-primary' : `vercel-server-${index + 1}`,
       label: index === 0 ? 'Vercel primary' : `Vercel Server ${index + 1}`,

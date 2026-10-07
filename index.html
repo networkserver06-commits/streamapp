@@ -1097,6 +1097,7 @@
                 const current = window.STREAMHD_PLAYER_CONFIG && typeof window.STREAMHD_PLAYER_CONFIG === 'object' ? window.STREAMHD_PLAYER_CONFIG : {};
                 window.STREAMHD_PLAYER_CONFIG = {
                     ...current,
+                    ...(Array.isArray(config.allowedHosts) ? { allowedHosts: config.allowedHosts } : {}),
                     ...(config.primaryTemplate ? { primaryTemplate: config.primaryTemplate } : {}),
                     ...(Array.isArray(config.sources) && config.sources.length ? { sources: config.sources } : {})
                 };
@@ -1121,7 +1122,8 @@
         function allowedPlayerHost(url) {
             try {
                 const host = new URL(url).hostname.toLowerCase().replace(/^www\./, '');
-                return host === 'youtube.com' || host.endsWith('.youtube.com') || host === 'youtube-nocookie.com' || host === 'archive.org' || host.endsWith('.archive.org') || host === 'vimeo.com' || host === 'player.vimeo.com';
+                const configuredHosts = window.STREAMHD_PLAYER_CONFIG && Array.isArray(window.STREAMHD_PLAYER_CONFIG.allowedHosts) ? window.STREAMHD_PLAYER_CONFIG.allowedHosts : [];
+                return host === 'youtube.com' || host.endsWith('.youtube.com') || host === 'youtube-nocookie.com' || host === 'archive.org' || host.endsWith('.archive.org') || host === 'vimeo.com' || host === 'player.vimeo.com' || configuredHosts.includes(host);
             } catch { return false; }
         }
         function renderPlayerSources(context = activePlayerContext) {
