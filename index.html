@@ -921,7 +921,7 @@
                 <input type="url" id="paste-link-input" class="paste-input" placeholder="Paste a YouTube or media URL..." aria-label="YouTube or media URL" autocomplete="url">
                 <div style="display: flex; gap: 8px;">
                     <button class="btn btn-primary" style="padding: 12px 20px;" onclick="handlePastePlay()">▶️ PLAY</button>
-                    <button class="btn" style="border-color:#ff8c00; color:#ff8c00; padding:12px 15px;" onclick="handlePasteDownload()">↗ OPEN LINK</button>
+                    <button class="btn" style="border-color:#ff8c00; color:#ff8c00; padding:12px 15px;" onclick="handlePasteDownload()">⬇ DOWNLOAD</button>
                 </div>
             </div>
 
@@ -930,7 +930,6 @@
                     <button class="btn btn-primary" onclick="openSearch('movie')">🎬 FIND MOVIE</button>
                     <button class="btn btn-primary" onclick="openSearch('tv')">📺 FIND SERIES</button>
                     <button class="btn btn-primary" onclick="openSearch('music')">🎵 FIND MUSIC</button>
-                    <button class="btn" style="border-color: #00f3ff; color: #00f3ff;" onclick="extractDownloadLink()">↗ OPEN SOURCE</button>
 
                     <button class="btn" style="border-color: #00ff41; color: #00ff41;" onclick="document.getElementById('local-video').click()">📂 PLAY LOCAL</button>
                     <input type="file" id="local-video" accept="video/mp4,video/x-m4v,video/*,audio/*" onchange="playLocalVideo(event)">
@@ -938,7 +937,7 @@
                     <button class="btn" onclick="togglePiP()">📱 MINI PLAYER</button>
                     <button class="btn" style="border-color: #ff8c00; color: #ff8c00;" onclick="handleAdminLogin()">⚙️ ADMIN</button>
                     <button id="vip-btn" class="btn" onclick="activateVIP()">👑 VIP PORTAL</button>
-                    <button class="btn" onclick="switchMirror()">📺 OFFICIAL SOURCE</button>
+                    <button class="btn" style="border-color: #00f3ff; color: #00f3ff;" onclick="downloadCurrentMedia()">⬇ DOWNLOAD</button>
                     <button id="install-app-btn" class="btn" onclick="installApp()">📥 INSTALL APP</button>
                 </div>
             </div>
@@ -1215,7 +1214,7 @@
                 art.switchUrl(url, kind === 'hls' ? 'm3u8' : undefined);
                 setPlayerStatus(`${kind === 'hls' ? 'Live / HLS' : 'Video'}: ${title}`); return true;
             }
-            setPlayerStatus('Unsupported link. Use YouTube or a direct MP3/M4A/AAC/WAV/OGG/FLAC/OPUS, MP4/WebM/MOV/MKV, or M3U8 URL.');
+            setPlayerStatus('Unsupported media link.');
             showToast('UNSUPPORTED MEDIA LINK'); return false;
         }
         function handlePastePlay() {
@@ -1225,11 +1224,32 @@
             playDirectMedia(rawUrl, 'Pasted media');
         }
 
+        async function downloadMedia(rawUrl, filename = 'streamhd-media') {
+            const url = safeWebUrl(rawUrl);
+            if (!url) { showToast('PASTE A VALID MEDIA URL FIRST'); return false; }
+            if (youtubeTarget(url)) { showToast('EMBEDDED VIDEO DOWNLOAD IS NOT AVAILABLE'); return false; }
+            if (mediaKind(url) === 'hls') { showToast('LIVE HLS STREAMS CANNOT BE DOWNLOADED AS A FILE'); return false; }
+            try {
+                showToast('PREPARING DOWNLOAD...');
+                const response = await fetch(url, { mode: 'cors' });
+                if (!response.ok) throw new Error(`DOWNLOAD_HTTP_${response.status}`);
+                const blob = await response.blob();
+                const objectUrl = URL.createObjectURL(blob);
+                const anchor = document.createElement('a');
+                anchor.href = objectUrl; anchor.download = `${String(filename).replace(/[^a-z0-9._-]+/gi, '_').slice(0, 100) || 'streamhd-media'}`;
+                document.body.appendChild(anchor); anchor.click(); anchor.remove();
+                setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+                showToast('DOWNLOAD STARTED'); return true;
+            } catch (error) {
+                console.warn('Integrated download failed', error);
+                showToast('DOWNLOAD UNAVAILABLE FOR THIS SOURCE'); return false;
+            }
+        }
+
         function handlePasteDownload() {
-            const url = safeWebUrl(document.getElementById('paste-link-input').value.trim());
-            if (!url) return showToast('PASTE A VALID DIRECT MEDIA URL FIRST');
-            window.open(url, '_blank', 'noopener,noreferrer');
-            showToast('OPENED THE SOURCE URL — USE ITS PERMITTED DOWNLOAD OPTIONS');
+            const url = document.getElementById('paste-link-input').value.trim();
+            if (!url) return showToast('PASTE A MEDIA URL FIRST');
+            downloadMedia(url, 'streamhd-download');
         }
 
 
@@ -1493,7 +1513,7 @@
                 caption.style.cssText = 'position:absolute;bottom:0;width:100%;background:rgba(0,0,0,.9);padding:15px 10px;font-size:.8rem;font-weight:bold;text-align:left;color:#fff';
                 card.append(image, caption);
                 card.addEventListener('click', () => {
-                    const entry = { name: title.toUpperCase(), artist, type: 'audio', category: 'music', url: safeWebUrl(item.audio), img, shareurl: safeWebUrl(item.shareurl), license: item.license_ccurl || '', watched: false, fav: false, reqVip: false };
+                    const entry = { name: title.toUpperCase(), artist, type: 'audio', category: 'music', url: safeWebUrl(item.audio), downloadUrl: safeWebUrl(item.audiodownload) || safeWebUrl(item.audio), img, shareurl: safeWebUrl(item.shareurl), license: item.license_ccurl || '', watched: false, fav: false, reqVip: false };
                     CHANNELS.unshift(entry); save(); closeSearch(); switchSource(0);
                 });
                 resBox.appendChild(card);
@@ -1557,15 +1577,6 @@
             setTimeout(() => { loader.style.display = 'none'; }, 1500);
         }
 
-        function switchMirror() {
-            const ch = CHANNELS[activeIdx];
-            if (!ch || ch.type !== 'cinema' || !ch.tmdbId) return showToast('NO CATALOG SOURCE FOR THIS ITEM');
-            const kind = ch.cType === 'tv' ? 'tv' : 'movie';
-            const url = `https://www.themoviedb.org/${kind}/${encodeURIComponent(ch.tmdbId)}/watch`;
-            window.open(url, '_blank', 'noopener,noreferrer');
-            showToast('OPENED THE OFFICIAL TITLE PAGE TO FIND LEGAL WATCH OPTIONS');
-        }
-
         function activateVIP() {
             const currentPass = localStorage.getItem('nebula_admin_pass');
             if (!currentPass) return showToast('SET A LOCAL ADMIN PASSWORD FIRST; THIS IS NOT SERVER ACCESS CONTROL');
@@ -1617,8 +1628,8 @@
                 if (safeWebUrl(ch.url) && mediaKind(safeWebUrl(ch.url))) {
                     playDirectMedia(ch.url, ch.name);
                 } else {
-                    setPlayerStatus(`Catalog item: ${ch.name}. Open its details and choose PLAY TRAILER, or add an authorized playback URL in Admin.`);
-                    showToast('OPEN DETAILS TO PLAY THE TRAILER'); openedSource = false;
+                    setPlayerStatus(`Catalog details loaded: ${ch.name}.`);
+                    showToast('CATALOG DETAILS READY'); openedSource = false;
                 }
             } else if (ch.type === 'iframe' || ch.type === 'game') {
                 const frame = document.getElementById('game-frame'); const url = safeWebUrl(ch.url);
@@ -1633,13 +1644,12 @@
             renderChannels(); if (openedSource) showToast(`PLAYING: ${ch.name}`);
         }
 
-        function extractDownloadLink() {
+        function downloadCurrentMedia() {
             const ch = CHANNELS[activeIdx];
-            const targetUrl = ch && (ch.type === 'youtube' ? (ch.id ? `https://www.youtube.com/watch?v=${encodeURIComponent(ch.id)}` : '') : ch.url);
-            const safeUrl = safeWebUrl(targetUrl);
-            if (!safeUrl) return showToast('NO DIRECT SOURCE URL FOR THIS ITEM');
-            window.open(safeUrl, '_blank', 'noopener,noreferrer');
-            showToast('OPENED SOURCE — USE ITS PERMITTED DOWNLOAD OPTIONS');
+            if (!ch) return showToast('SELECT MEDIA FIRST');
+            const targetUrl = ch.downloadUrl || ch.url;
+            if (!targetUrl) return showToast('DOWNLOAD IS NOT AVAILABLE FOR THIS ITEM');
+            downloadMedia(targetUrl, ch.name || 'streamhd-media');
         }
 
         function setFilter(type, btnEl) {
