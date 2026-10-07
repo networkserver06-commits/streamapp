@@ -953,6 +953,7 @@
                     <button class="btn btn-primary" onclick="openSearch('tv')">📺 FIND SERIES</button>
                     <button class="btn btn-primary" onclick="openSearch('music')">🎵 FIND MUSIC</button>
                     <button class="btn btn-primary" onclick="openSearch('kenya')">🇰🇪 FIND KENYA TV</button>
+                    <button class="btn btn-primary" onclick="openSearch('archive')">🎞️ FREE ARCHIVE FILMS</button>
 
                     <button class="btn" style="border-color: #00ff41; color: #00ff41;" onclick="document.getElementById('local-video').click()">📂 PLAY LOCAL</button>
                     <input type="file" id="local-video" accept="video/mp4,video/x-m4v,video/*,audio/*" onchange="playLocalVideo(event)">
@@ -1160,8 +1161,6 @@
             { name: "KBC CHANNEL 1", channelId: "UCypNjM5hP1qcUqQZe57jNfg", type: "youtube", category: "kenya", img: "https://ui-avatars.com/api/?name=KBC+1&background=111&color=00f3ff&size=512", watched: false, fav: false, reqVip: false },
             { name: "TV47 KENYA", channelId: "UC_zA9UIWE1fB-jfFk_DBSYw", type: "youtube", category: "kenya", img: "https://ui-avatars.com/api/?name=TV47&background=111&color=ff3131&size=512", watched: false, fav: false, reqVip: false },
             { name: "MAISHA TV KENYA", channelId: "UCMHEDqpZlYKoRJIyap-rqpA", type: "youtube", category: "kenya", img: "https://ui-avatars.com/api/?name=Maisha+TV&background=111&color=25d366&size=512", watched: false, fav: false, reqVip: false },
-            { name: "FIFA STREAM CENTER", url: "https://v3.sportsonline.to/", type: "iframe", category: "sports", img: "https://ui-avatars.com/api/?name=FIFA+LIVE&background=00f3ff&color=000&size=512", watched: false, fav: true, reqVip: false },
-            { name: "GLOBAL SPORTS HUB", url: "https://v1.score808.tv/", type: "iframe", category: "sports", img: "https://ui-avatars.com/api/?name=LIVE+SPORTS&background=bc13fe&color=fff&size=512", watched: false, fav: true, reqVip: true },
             { name: "LOFI RADIO 24/7", id: "jfKfPfyJRdk", type: "youtube", category: "music", img: "https://i.ytimg.com/vi/jfKfPfyJRdk/maxresdefault.jpg", watched: false, fav: true, reqVip: false },
             { name: "JOHN WICK 4", tmdbId: "603692", type: "cinema", cType: "movie", category: "movie", img: "https://image.tmdb.org/t/p/w500/vZloFAK7NmvMGKE7VkF5UHaz0I.jpg", watched: false, fav: true, reqVip: false },
             { name: "AVATAR: THE WAY OF WATER", tmdbId: "76600", type: "cinema", cType: "movie", category: "movie", img: "https://image.tmdb.org/t/p/w500/t6HI63ehBscY7b68suu2PRzaias.jpg", watched: false, fav: false, reqVip: false },
@@ -1618,12 +1617,12 @@
         function openSearch(type) {
             searchMode = type;
             document.getElementById('search-input').value = '';
-            document.getElementById('search-head-title').innerText = type === 'movie' ? ' 🎬 SEARCH MOVIES' : type === 'tv' ? '📺 SEARCH SERIES' : type === 'kenya' ? '🇰🇪 SEARCH KENYA TV' : '🎵 SEARCH MUSIC';
+            document.getElementById('search-head-title').innerText = type === 'movie' ? ' 🎬 SEARCH MOVIES' : type === 'tv' ? '📺 SEARCH SERIES' : type === 'kenya' ? '🇰🇪 SEARCH KENYA TV' : type === 'archive' ? '🎞️ FREE ARCHIVE FILMS' : '🎵 SEARCH MUSIC';
             document.getElementById('api-results').innerHTML = '';
-            document.getElementById('search-status').innerText = type === 'kenya' ? 'READY — SEARCH OFFICIAL KENYAN CHANNELS' : 'LOADING TRENDING TODAY...';
+            document.getElementById('search-status').innerText = type === 'kenya' ? 'READY — SEARCH OFFICIAL KENYAN CHANNELS' : type === 'archive' ? 'SEARCHING INTERNET ARCHIVE PRELINGER COLLECTION...' : 'LOADING TRENDING TODAY...';
             document.getElementById('search-overlay').style.display = 'flex';
 
-            if (type === 'kenya') renderKenyaSearchResults(''); else fetchTrending(type);
+            if (type === 'kenya') renderKenyaSearchResults(''); else if (type === 'archive') fetchArchiveResults(''); else fetchTrending(type);
             setTimeout(() => document.getElementById('search-input').focus(), 100);
         }
 
@@ -1640,6 +1639,48 @@
                     card.append(image, caption); card.addEventListener('click', () => { closeOverlay('search-overlay'); switchSource(index); }); resBox.appendChild(card);
                 });
             document.getElementById('search-status').innerText = resBox.children.length ? `FOUND ${resBox.children.length} OFFICIAL KENYAN CHANNELS` : 'NO KENYAN CHANNEL MATCH — TRY CITIZEN, NTV, KTN, K24, KBC, TV47 OR MAISHA';
+        }
+
+        async function fetchArchiveResults(query) {
+            const resBox = document.getElementById('api-results');
+            const term = String(query || '').trim();
+            const q = term ? `collection:prelinger AND title:(${term.replace(/[()]/g, ' ')})` : 'collection:prelinger';
+            const url = new URL('https://archive.org/advancedsearch.php');
+            const params = new URLSearchParams({ q, rows: '24', page: '1', output: 'json' });
+            ['identifier', 'title', 'description', 'year'].forEach(field => params.append('fl[]', field));
+            url.search = params.toString();
+            try {
+                const response = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
+                if (!response.ok) throw new Error(`ARCHIVE_HTTP_${response.status}`);
+                const data = await response.json();
+                const results = data.response && Array.isArray(data.response.docs) ? data.response.docs : [];
+                document.getElementById('search-status').innerText = results.length ? `FOUND ${results.length} INTERNET ARCHIVE FILMS` : 'NO ARCHIVE FILMS FOUND — TRY ANOTHER TITLE';
+                renderArchiveResults(results);
+            } catch (error) {
+                document.getElementById('search-status').innerText = 'INTERNET ARCHIVE SEARCH NEEDS AN INTERNET CONNECTION — TRY AGAIN ONLINE';
+                resBox.innerHTML = '<p style="padding:30px;color:#777">Archive search is temporarily unavailable.</p>';
+            }
+        }
+
+        function renderArchiveResults(results) {
+            const resBox = document.getElementById('api-results');
+            resBox.replaceChildren();
+            results.forEach(item => {
+                const id = String(item.identifier || '').trim(); if (!id) return;
+                const title = String(item.title || id).replace(/\s+/g, ' ');
+                const card = document.createElement('button'); card.type = 'button'; card.className = 'api-card'; card.setAttribute('aria-label', `Play ${title}`);
+                const image = document.createElement('img'); image.src = `https://archive.org/services/img/${encodeURIComponent(id)}`; image.alt = `${title} poster`; image.loading = 'lazy'; image.style.cssText = 'width:100%;height:100%;object-fit:cover';
+                const caption = document.createElement('span'); caption.textContent = `${title} — PRELINGER ARCHIVE`; caption.style.cssText = 'position:absolute;bottom:0;width:100%;background:rgba(0,0,0,.9);padding:15px 10px;font-size:.8rem;font-weight:bold;text-align:left;color:#fff';
+                card.append(image, caption); card.addEventListener('click', () => { closeOverlay('search-overlay'); playArchiveItem(id, title); }); resBox.appendChild(card);
+            });
+        }
+
+        function playArchiveItem(identifier, title) {
+            hideAllPlayers(); triggerLoader();
+            const frame = document.getElementById('movie-frame');
+            frame.style.display = 'block'; frame.src = `https://archive.org/embed/${encodeURIComponent(identifier)}`;
+            setPlayerStatus(`Playing Internet Archive film: ${title}`);
+            showToast('OPENING ARCHIVE FILM');
         }
 
         function renderLocalCatalogFallback(type) {
@@ -1714,6 +1755,7 @@
             statusBox.innerText = "CONNECTING TO GLOBAL DATABASE...";
 
             try {
+                if (searchMode === 'archive') { fetchArchiveResults(query); return; }
                 if (searchMode === 'kenya') { renderKenyaSearchResults(query); return; }
                 if (searchMode === 'music') {
                     const data = await jamendoFetch({ search: query, order: 'relevance' });

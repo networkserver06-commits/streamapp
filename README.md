@@ -34,6 +34,8 @@ The **Kenya** library includes official live channels for Citizen TV, NTV Kenya,
 
 Use **FIND KENYA TV** to search these official Kenyan channels instantly by name (Citizen, NTV, KTN, K24, KBC, TV47, or Maisha). The local search does not depend on TMDB, so it remains available when the metadata API is offline. When a broadcaster has no active live programme, the app keeps the official channel entry available and shows a neutral feed-loading state instead of a broken-source error.
 
+**FREE ARCHIVE FILMS** searches the Internet Archive’s Prelinger collection and opens the official Archive embed inside the player without an API key. YouTube trailers/clips use the official no-cookie embed. Vimeo and Watchmode require the account’s authorized API credentials and are not treated as anonymous free stream sources; TMDB/Watchmode links are availability links, not embeddable media.
+
 Common audio formats include MP3, M4A, AAC, WAV, OGG, OPUS, and FLAC. Common video formats include MP4, WebM, MOV, and HLS; actual support varies by device. DRM playback and MPEG-DASH are not implemented.
 
 ## Access-control note
