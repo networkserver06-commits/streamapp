@@ -38,6 +38,8 @@ Use **FIND KENYA TV** to search these official Kenyan channels instantly by name
 
 The hybrid player loads TMDB title metadata, release date, overview, rating, and top cast through the TMDB proxy. The details view loads official YouTube trailer/clip keys from TMDB and plays them in the embedded YouTube player, embeds Internet Archive films through the official Archive player, and shows global TMDB Watch Provider cards with free/ad-supported options first. The footer includes the required notice: “This product uses the TMDB API but is not endorsed or certified by TMDB.”
 
+YouTube playback offers both the privacy-enhanced `youtube-nocookie.com` embed and an official `youtube.com` fallback in the source selector. YouTube may still require sign-in or an “I’m not a robot” check for a particular network, IP, video, or account; this is enforced by YouTube and cannot be bypassed by the app.
+
 The player has a runtime **Server / Source Selector**. On this static Vercel app, runtime configuration is supplied through `window.STREAMHD_PLAYER_CONFIG` or the Admin panel’s **APPROVED PLAYER TEMPLATE** field (the equivalent of a client-exposed `.env.local` value). Supported placeholders are `{tmdb_id}`, `{type}`, `{season}`, `{episode}`, `{youtube_key}`, `{archive_id}`, and `{authorized_url}`. Only YouTube, Internet Archive, Vimeo, and approved direct media hosts are accepted; unapproved embed gateways are rejected. TV details load seasons and episodes from TMDB, update the active episode state, and automatically play an official YouTube episode clip when TMDB lists one.
 
 Example runtime configuration, loaded before the app script:

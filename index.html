@@ -1082,6 +1082,7 @@
         let searchMode = 'movie';
         const DEFAULT_PLAYER_SOURCES = [
             { id: 'youtube', label: 'Official YouTube', template: 'https://www.youtube-nocookie.com/embed/{youtube_key}?autoplay=1&rel=0&playsinline=1', variable: 'youtube_key' },
+            { id: 'youtube-standard', label: 'YouTube standard fallback', template: 'https://www.youtube.com/embed/{youtube_key}?autoplay=1&rel=0&playsinline=1', variable: 'youtube_key' },
             { id: 'archive', label: 'Internet Archive', template: 'https://archive.org/embed/{archive_id}', variable: 'archive_id' },
             { id: 'authorized', label: 'Authorized media', template: '{authorized_url}', variable: 'authorized_url' }
         ];
