@@ -918,7 +918,7 @@
 
             <!-- PASTE & PLAY PANEL -->
             <div class="paste-play-box">
-                <input type="url" id="paste-link-input" class="paste-input" placeholder="Paste an authorized YouTube, HLS, video, or audio URL..." aria-label="Media URL" autocomplete="url">
+                <input type="url" id="paste-link-input" class="paste-input" placeholder="Paste a YouTube or media URL..." aria-label="YouTube or media URL" autocomplete="url">
                 <div style="display: flex; gap: 8px;">
                     <button class="btn btn-primary" style="padding: 12px 20px;" onclick="handlePastePlay()">▶️ PLAY</button>
                     <button class="btn" style="border-color:#ff8c00; color:#ff8c00; padding:12px 15px;" onclick="handlePasteDownload()">↗ OPEN LINK</button>
@@ -1164,8 +1164,8 @@
             ] : [];
         }
         function youtubeChannelFallback(title, channelId, channelUrl) {
-            setPlayerStatus(`${title}: the embedded live player only has a video while the channel is broadcasting. Open the official channel for its live feed or recent uploads.`, youtubeChannelLinks(channelId, channelUrl));
-            showToast('OFFICIAL YOUTUBE CHANNEL OPTIONS READY');
+            setPlayerStatus(`${title}: live playback is not currently available.`);
+            showToast('LIVE PLAYBACK IS NOT CURRENTLY AVAILABLE');
             return false;
         }
         function youtubeChannelEmbedUrl(channelId) {
@@ -1192,14 +1192,14 @@
                 const frame = document.getElementById('yt-frame');
                 frame.style.display = 'block';
                 frame.src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(yt.id)}?autoplay=1&rel=0&playsinline=1`;
-                setPlayerStatus(`YouTube video: ${title}. If embedding is restricted, use the official link.`, [{ label: 'WATCH ON YOUTUBE', href: `https://www.youtube.com/watch?v=${encodeURIComponent(yt.id)}` }]);
-                showToast('OPENING YOUTUBE VIDEO'); return true;
+                setPlayerStatus(`Playing: ${title}`);
+                showToast('OPENING VIDEO'); return true;
             }
             if (yt && yt.playlist) {
                 const frame = document.getElementById('yt-frame'); frame.style.display = 'block';
                 frame.src = `https://www.youtube-nocookie.com/embed/videoseries?list=${encodeURIComponent(yt.playlist)}&autoplay=1&rel=0&playsinline=1`;
-                setPlayerStatus(`YouTube playlist: ${title}. If embedding is restricted, open it on YouTube.`, [{ label: 'OPEN PLAYLIST ON YOUTUBE', href: `https://www.youtube.com/playlist?list=${encodeURIComponent(yt.playlist)}` }]);
-                showToast('OPENING YOUTUBE PLAYLIST'); return true;
+                setPlayerStatus(`Playing playlist: ${title}`);
+                showToast('OPENING PLAYLIST'); return true;
             }
             if (yt && (yt.channel || yt.channelPage)) return youtubeChannelFallback(title, yt.channel || '', yt.channelPage || '');
             const kind = forcedKind || mediaKind(url);
@@ -1599,8 +1599,8 @@
                     if (embedUrl) {
                         frame.style.display = 'block';
                         frame.src = embedUrl;
-                        setPlayerStatus(`YouTube live channel: ${ch.name}. Playback appears here when the channel is broadcasting.`, youtubeChannelLinks(ch.channelId, ch.channelUrl || ''));
-                        showToast('OPENING YOUTUBE LIVE CHANNEL');
+                        setPlayerStatus(`Playing live channel: ${ch.name}`);
+                        showToast('OPENING LIVE CHANNEL');
                     } else {
                         openedSource = youtubeChannelFallback(ch.name, '', ch.channelUrl || '');
                     }
@@ -1608,11 +1608,11 @@
                     openedSource = youtubeChannelFallback(ch.name, '', ch.channelUrl || '');
                 } else if (ch.playlistId) {
                     frame.style.display = 'block'; frame.src = `https://www.youtube-nocookie.com/embed/videoseries?list=${encodeURIComponent(ch.playlistId)}&autoplay=1&rel=0&playsinline=1`;
-                    setPlayerStatus(`YouTube playlist: ${ch.name}. If embedding is restricted, open it on YouTube.`, [{ label: 'OPEN PLAYLIST ON YOUTUBE', href: `https://www.youtube.com/playlist?list=${encodeURIComponent(ch.playlistId)}` }]);
+                    setPlayerStatus(`Playing playlist: ${ch.name}`);
                 } else if (ch.id) {
                     frame.style.display = 'block'; frame.src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(ch.id)}?autoplay=1&rel=0&playsinline=1`;
-                    setPlayerStatus(`YouTube video: ${ch.name}. If embedding is restricted, use the official link.`, [{ label: 'WATCH ON YOUTUBE', href: `https://www.youtube.com/watch?v=${encodeURIComponent(ch.id)}` }]);
-                } else { setPlayerStatus('This YouTube item has no valid video, playlist, or channel link.'); openedSource = false; }
+                    setPlayerStatus(`Playing: ${ch.name}`);
+                } else { setPlayerStatus('This item has no valid playable source.'); openedSource = false; }
             } else if (ch.type === 'cinema') {
                 if (safeWebUrl(ch.url) && mediaKind(safeWebUrl(ch.url))) {
                     playDirectMedia(ch.url, ch.name);
