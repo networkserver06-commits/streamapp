@@ -812,7 +812,7 @@
                 <div id="det-desc" class="details-desc">Loading description...</div>
 
                 <div class="btn-grid" style="grid-template-columns: 1fr 1fr;">
-                    <button class="btn btn-primary" onclick="playCurrentDetails()">▶️ PLAY / TRAILER</button>
+                    <button id="det-play-btn" class="btn btn-primary" onclick="playCurrentDetails()">▶️ PLAY FULL</button>
                     <button class="btn" style="border-color: #00f3ff; color: #00f3ff;" onclick="trailerCurrentDetails()">📺 TRAILER</button>
                     <button class="btn" onclick="shareCurrentDetails()">🔗 SHARE APP</button>
                     <button class="btn" style="border-color: #ff3131; color: #ff3131;" onclick="closeOverlay('details-overlay')">CLOSE</button>
@@ -1388,6 +1388,10 @@
         function closeSearch() { closeOverlay('search-overlay'); }
 
         let activeDetailsEntry = null;
+        function hasCatalogPlayback(ch) {
+            const url = safeWebUrl(ch && ch.url);
+            return Boolean(url && (mediaKind(url) || youtubeTarget(url)));
+        }
 
         async function openDetails(idx) {
             const ch = CHANNELS[idx];
@@ -1400,6 +1404,11 @@
             document.getElementById('det-img').src = ch.img;
             document.getElementById('det-meta').innerText = "Loading data...";
             document.getElementById('det-desc').innerText = "Connecting to global database...";
+            const fullPlayButton = document.getElementById('det-play-btn');
+            if (fullPlayButton) {
+                fullPlayButton.disabled = !hasCatalogPlayback(ch);
+                fullPlayButton.title = hasCatalogPlayback(ch) ? 'Play the authorized full media source' : 'Full playback is not configured for this catalog item';
+            }
 
             document.getElementById('details-overlay').style.display = 'flex';
 
@@ -1419,7 +1428,11 @@
 
         function playCurrentDetails() {
             const ch = CHANNELS[activeDetailsEntry];
-            if (ch && ch.type === 'cinema' && !mediaKind(safeWebUrl(ch.url))) return trailerCurrentDetails();
+            if (ch && ch.type === 'cinema' && !hasCatalogPlayback(ch)) {
+                setPlayerStatus(`Full playback is not configured for ${ch.name}.`);
+                showToast('FULL PLAYBACK IS NOT CONFIGURED');
+                return;
+            }
             closeOverlay('details-overlay');
             switchSource(activeDetailsEntry);
         }
@@ -1646,11 +1659,11 @@
                     setPlayerStatus(`Playing: ${ch.name}`);
                 } else { setPlayerStatus('This item has no valid playable source.'); openedSource = false; }
             } else if (ch.type === 'cinema') {
-                if (safeWebUrl(ch.url) && mediaKind(safeWebUrl(ch.url))) {
+                if (hasCatalogPlayback(ch)) {
                     playDirectMedia(ch.url, ch.name);
                 } else {
-                    setPlayerStatus(`Catalog details loaded: ${ch.name}.`);
-                    showToast('CATALOG DETAILS READY'); openedSource = false;
+                    setPlayerStatus(`Catalog details loaded: ${ch.name}. Full playback is not configured.`);
+                    showToast('FULL PLAYBACK IS NOT CONFIGURED'); openedSource = false;
                 }
             } else if (ch.type === 'iframe' || ch.type === 'game') {
                 const frame = document.getElementById('game-frame'); const url = safeWebUrl(ch.url);
