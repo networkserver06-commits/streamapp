@@ -812,7 +812,6 @@
                 <div id="det-desc" class="details-desc">Loading description...</div>
 
                 <div class="btn-grid" style="grid-template-columns: 1fr 1fr;">
-                    <button class="btn btn-primary" onclick="playCurrentDetails()">▶️ PLAY</button>
                     <button class="btn" onclick="shareCurrentDetails()">🔗 SHARE APP</button>
                     <button class="btn" style="border-color: #ff3131; color: #ff3131;" onclick="closeOverlay('details-overlay')">CLOSE</button>
                 </div>
@@ -866,10 +865,6 @@
                 <input type="url" id="ad-img" placeholder="https://…">
             </div>
             <div class="admin-group">
-                <label>AUTHORIZED DIRECT PLAYBACK URL (Optional)</label>
-                <input type="url" id="ad-playback-url" placeholder="Your licensed/owned MP4, M3U8, or audio URL">
-            </div>
-            <div class="admin-group">
                 <label>TMDB API KEY (OPTIONAL LOCAL FALLBACK)</label>
                 <input type="password" id="tmdb-api-key-input" autocomplete="off" placeholder="Paste your own TMDB API key">
                 <button class="btn" style="margin-top:8px;width:100%;" onclick="saveTmdbKey()">SAVE TMDB KEY</button>
@@ -907,18 +902,9 @@
                 <div id="loader" class="loader"></div>
                 <div id="player"></div>
                 <audio id="audio-player" controls playsinline preload="metadata" aria-label="Audio player"></audio>
-                <div id="player-status" class="player-status" role="status" aria-live="polite">Choose a channel or paste a supported media link.</div>
+                <div id="player-status" class="player-status" role="status" aria-live="polite">Choose a catalog item or music track.</div>
                 <iframe id="movie-frame" referrerpolicy="no-referrer" allowfullscreen allow="autoplay; encrypted-media; picture-in-picture"></iframe>
                 <iframe id="game-frame" allowfullscreen></iframe>
-            </div>
-
-            <!-- PASTE & PLAY PANEL -->
-            <div class="paste-play-box">
-                <input type="url" id="paste-link-input" class="paste-input" placeholder="Paste an authorized HLS, video, or audio URL..." aria-label="Media URL" autocomplete="url">
-                <div style="display: flex; gap: 8px;">
-                    <button class="btn btn-primary" style="padding: 12px 20px;" onclick="handlePastePlay()">▶️ PLAY</button>
-                    <button class="btn" style="border-color:#ff8c00; color:#ff8c00; padding:12px 15px;" onclick="handlePasteDownload()">↗ OPEN LINK</button>
-                </div>
             </div>
 
             <div class="control-dock">
@@ -926,7 +912,6 @@
                     <button class="btn btn-primary" onclick="openSearch('movie')">🎬 FIND MOVIE</button>
                     <button class="btn btn-primary" onclick="openSearch('tv')">📺 FIND SERIES</button>
                     <button class="btn btn-primary" onclick="openSearch('music')">🎵 FIND MUSIC</button>
-                    <button class="btn" style="border-color: #00f3ff; color: #00f3ff;" onclick="extractDownloadLink()">↗ OPEN SOURCE</button>
 
                     <button class="btn" style="border-color: #00ff41; color: #00ff41;" onclick="document.getElementById('local-video').click()">📂 PLAY LOCAL</button>
                     <input type="file" id="local-video" accept="video/mp4,video/x-m4v,video/*,audio/*" onchange="playLocalVideo(event)">
@@ -1146,21 +1131,6 @@
             setPlayerStatus('Unsupported media link. Use a direct MP3/M4A/AAC/WAV/OGG/FLAC/OPUS, MP4/WebM/MOV/MKV, or M3U8 URL.');
             showToast('UNSUPPORTED MEDIA LINK'); return false;
         }
-        function handlePastePlay() {
-            const input = document.getElementById('paste-link-input');
-            const rawUrl = input.value.trim();
-            if (!rawUrl) return showToast('PASTE A MEDIA URL FIRST');
-            playDirectMedia(rawUrl, 'Pasted media');
-        }
-
-        function handlePasteDownload() {
-            const url = safeWebUrl(document.getElementById('paste-link-input').value.trim());
-            if (!url) return showToast('PASTE A VALID DIRECT MEDIA URL FIRST');
-            window.open(url, '_blank', 'noopener,noreferrer');
-            showToast('OPENED THE SOURCE URL — USE ITS PERMITTED DOWNLOAD OPTIONS');
-        }
-
-
         // -------------------------
         // ADMIN & DB BACKUP ENGINE
         // -------------------------
@@ -1205,10 +1175,9 @@
             const type = document.getElementById('ad-type').value;
             const data = document.getElementById('ad-data').value.trim();
             const img = safeWebUrl(document.getElementById('ad-img').value.trim());
-            const playbackUrl = safeWebUrl(document.getElementById('ad-playback-url').value.trim());
             if (!title || !data) return showToast('TITLE AND DATA REQUIRED');
             const entry = { name: title.slice(0, 120), category: type, type, img, watched: false, fav: false, reqVip: type === 'game' || type === 'iframe' };
-            if (type === 'movie' || type === 'tv') { entry.type = 'cinema'; entry.cType = type; entry.tmdbId = data; entry.url = playbackUrl; entry.category = type; }
+            if (type === 'movie' || type === 'tv') { entry.type = 'cinema'; entry.cType = type; entry.tmdbId = data; entry.url = ''; entry.category = type; }
             else if (type === 'audio' || type === 'video' || type === 'hls') {
                 const url = safeWebUrl(data);
                 if (!url || (mediaKind(url) !== type && !(type === 'video' && mediaKind(url) === 'hls'))) return showToast('URL EXTENSION DOES NOT MATCH THE SELECTED MEDIA TYPE');
@@ -1293,12 +1262,6 @@
             } catch (e) {
                 document.getElementById('det-desc').innerText = e.message === 'TMDB_API_KEY_MISSING' ? 'TMDB metadata is disabled until the site owner configures a TMDB API key.' : 'TMDB could not load this title. Check the API key or network.';
             }
-        }
-
-        function playCurrentDetails() {
-            const ch = CHANNELS[activeDetailsEntry];
-            closeOverlay('details-overlay');
-            switchSource(activeDetailsEntry);
         }
 
         function shareCurrentDetails() {
@@ -1501,8 +1464,8 @@
                 if (safeWebUrl(ch.url) && mediaKind(safeWebUrl(ch.url))) {
                     playDirectMedia(ch.url, ch.name);
                 } else {
-                    setPlayerStatus(`Catalog item: ${ch.name}. Add an authorized playback URL in Admin to play this catalog item.`);
-                    showToast('NO AUTHORIZED PLAYBACK URL FOR THIS CATALOG ITEM'); openedSource = false;
+                    setPlayerStatus(`Catalog details loaded: ${ch.name}.`);
+                    showToast('CATALOG DETAILS READY'); openedSource = false;
                 }
             } else if (ch.type === 'iframe' || ch.type === 'game') {
                 const frame = document.getElementById('game-frame'); const url = safeWebUrl(ch.url);
@@ -1515,15 +1478,6 @@
                 setPlayerStatus('This item has no playable source URL. Add a supported direct media link.'); openedSource = false;
             }
             renderChannels(); if (openedSource) showToast(`PLAYING: ${ch.name}`);
-        }
-
-        function extractDownloadLink() {
-            const ch = CHANNELS[activeIdx];
-            const targetUrl = ch && ch.url;
-            const safeUrl = safeWebUrl(targetUrl);
-            if (!safeUrl) return showToast('NO DIRECT SOURCE URL FOR THIS ITEM');
-            window.open(safeUrl, '_blank', 'noopener,noreferrer');
-            showToast('OPENED SOURCE — USE ITS PERMITTED DOWNLOAD OPTIONS');
         }
 
         function setFilter(type, btnEl) {
