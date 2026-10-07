@@ -1514,7 +1514,7 @@
                 }
             } catch(e) {
                 if (type === 'music') {
-                    document.getElementById('search-status').innerText = e.message === 'JAMENDO_CLIENT_ID_MISSING' || e.message === 'JAMENDO_CLIENT_ID_INVALID' ? 'Music is not configured correctly. Check JAMENDO_CLIENT_ID in Vercel Project Settings, then redeploy.' : `Music search failed: ${apiErrorText(e.message, 'unknown error')}`;
+                    document.getElementById('search-status').innerText = e.message === 'JAMENDO_CLIENT_ID_MISSING' || e.message === 'JAMENDO_CLIENT_ID_INVALID' ? 'Music is not configured correctly. Check JAMENDO_API_KEY or JAMENDO_CLIENT_ID in Vercel Project Settings, then redeploy.' : `Music search failed: ${apiErrorText(e.message, 'unknown error')}`;
                 } else {
                     document.getElementById('search-status').innerText = e.message === 'TMDB_CREDENTIALS_MISSING' || e.message === 'TMDB_API_KEY_MISSING' ? 'TMDB is not configured. Add TMDB_ACCESS_TOKEN or TMDB_API_KEY in Vercel Project Settings, then redeploy. Showing saved catalog.' : 'TMDB trending is temporarily unavailable. Showing saved catalog.';
                     renderLocalCatalogFallback(type);
@@ -1561,7 +1561,7 @@
                     statusBox.innerText = `FOUND ${data.results.length} RESULTS`;
                     renderAPIResults(data.results, searchMode);
                 } else { statusBox.innerText = "NO RESULTS FOUND."; }
-            } catch (e) { statusBox.innerText = e.message === 'JAMENDO_CLIENT_ID_MISSING' || e.message === 'JAMENDO_CLIENT_ID_INVALID' ? 'Music is not configured correctly. Check JAMENDO_CLIENT_ID in Vercel Project Settings, then redeploy.' : e.message === 'TMDB_CREDENTIALS_MISSING' || e.message === 'TMDB_API_KEY_MISSING' ? 'TMDB is not configured. Add TMDB_ACCESS_TOKEN or TMDB_API_KEY in Vercel Project Settings, then redeploy.' : `API request failed (${apiErrorText(e.message, 'unknown error')}). Check the key or network and retry.`; }
+            } catch (e) { statusBox.innerText = e.message === 'JAMENDO_CLIENT_ID_MISSING' || e.message === 'JAMENDO_CLIENT_ID_INVALID' ? 'Music is not configured correctly. Check JAMENDO_API_KEY or JAMENDO_CLIENT_ID in Vercel Project Settings, then redeploy.' : e.message === 'TMDB_CREDENTIALS_MISSING' || e.message === 'TMDB_API_KEY_MISSING' ? 'TMDB is not configured. Add TMDB_ACCESS_TOKEN or TMDB_API_KEY in Vercel Project Settings, then redeploy.' : `API request failed (${apiErrorText(e.message, 'unknown error')}). Check the key or network and retry.`; }
         }
 
         function renderJamendoResults(results) {

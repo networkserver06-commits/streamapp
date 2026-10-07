@@ -22,7 +22,7 @@ The TMDB key previously embedded in the public source should be revoked/rotated 
 
 ## Jamendo music setup
 
-Create an application in the [Jamendo developer portal](https://devportal.jamendo.com/), then add its Client ID to Vercel as `JAMENDO_CLIENT_ID` for Production and Preview. Redeploy after saving it. **Find Music** searches Jamendo automatically and plays the returned stream URL in the built-in audio player; each result includes artist attribution and a link back to Jamendo. Use the API only within Jamendo's license terms and request limits.
+Create an application in the [Jamendo developer portal](https://devportal.jamendo.com/), then add its Client ID—the public catalog API credential—to Vercel as `JAMENDO_API_KEY` or `JAMENDO_CLIENT_ID` for Production and Preview. The proxy accepts `JAMENDO_API_KEY` first, then falls back to `JAMENDO_CLIENT_ID`. Redeploy after saving it. **Find Music** searches Jamendo automatically and plays the returned stream URL in the built-in audio player; each result includes artist attribution and a link back to Jamendo. Use the API only within Jamendo's license terms and request limits.
 
 ## Add media and TV
 
