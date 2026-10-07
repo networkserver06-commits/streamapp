@@ -910,6 +910,13 @@
                 <small style="display:block;color:#888;margin-top:6px;line-height:1.4;">Allowed hosts: YouTube, Internet Archive, Vimeo. Placeholders: {tmdb_id}, {type}, {season}, {episode}, {youtube_key}, {archive_id}, {authorized_url}.</small>
                 <button class="btn" style="margin-top:8px;width:100%;" onclick="savePlayerTemplate()">SAVE PLAYER TEMPLATE</button>
             </div>
+            <div class="admin-group" style="border:1px solid rgba(255,49,49,.45);padding:12px;border-radius:10px;">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                    <input type="checkbox" id="custom-provider-safety-toggle" onchange="toggleCustomProviderSafety(this.checked)">
+                    ENABLE CUSTOM PROVIDER HOSTS
+                </label>
+                <small style="display:block;color:#aaa;margin-top:6px;line-height:1.4;">Default: OFF. When enabled, the exact domains in NEXT_PUBLIC_ALLOWED_PLAYER_HOSTS and matching custom templates may appear in the source selector.</small>
+            </div>
             <div style="display: flex; gap: 10px; margin-top: 30px;">
                 <button class="btn btn-primary" style="flex:1;" onclick="adminSaveContent()">💾 ADD</button>
                 <button class="btn" style="flex:1; border-color: #00f3ff; color: #00f3ff;" onclick="exportDB()">📥 EXPORT DB</button>
@@ -1114,6 +1121,18 @@
             renderPlayerSources(activePlayerContext);
             showToast('APPROVED PLAYER TEMPLATE SAVED');
         }
+        function customProviderSafetyEnabled() {
+            return localStorage.getItem('streamhd_custom_provider_safety') === 'true';
+        }
+        function toggleCustomProviderSafety(enabled) {
+            localStorage.setItem('streamhd_custom_provider_safety', enabled ? 'true' : 'false');
+            renderPlayerSources(activePlayerContext);
+            showToast(enabled ? 'CUSTOM PROVIDER HOSTS ENABLED' : 'CUSTOM PROVIDER HOSTS DISABLED');
+        }
+        function syncCustomProviderSafetyToggle() {
+            const toggle = document.getElementById('custom-provider-safety-toggle');
+            if (toggle) toggle.checked = customProviderSafetyEnabled();
+        }
         function expandPlayerTemplate(template, context = {}) {
             let output = String(template || '').replace(/\{(tmdb_id|type|season|episode|youtube_key|archive_id|authorized_url)\}/g, (_, key) => encodeURIComponent(String(context[key] ?? '')));
             if (!output || /\{(?:tmdb_id|type|season|episode|youtube_key|archive_id|authorized_url)\}/.test(output)) return '';
@@ -1122,7 +1141,7 @@
         function allowedPlayerHost(url) {
             try {
                 const host = new URL(url).hostname.toLowerCase().replace(/^www\./, '');
-                const configuredHosts = window.STREAMHD_PLAYER_CONFIG && Array.isArray(window.STREAMHD_PLAYER_CONFIG.allowedHosts) ? window.STREAMHD_PLAYER_CONFIG.allowedHosts : [];
+                const configuredHosts = customProviderSafetyEnabled() && window.STREAMHD_PLAYER_CONFIG && Array.isArray(window.STREAMHD_PLAYER_CONFIG.allowedHosts) ? window.STREAMHD_PLAYER_CONFIG.allowedHosts : [];
                 return host === 'youtube.com' || host.endsWith('.youtube.com') || host === 'youtube-nocookie.com' || host === 'archive.org' || host.endsWith('.archive.org') || host === 'vimeo.com' || host === 'player.vimeo.com' || configuredHosts.includes(host);
             } catch { return false; }
         }
@@ -1444,11 +1463,13 @@
                 if (newPass && newPass.trim() !== "") {
                     localStorage.setItem('nebula_admin_pass', newPass.trim());
                     showToast("PASSWORD SAVED. ACCESS GRANTED.");
+                    syncCustomProviderSafetyToggle();
                     document.getElementById('admin-overlay').style.display = 'flex';
                 }
             } else {
                 let entered = prompt("ENTER MASTER PASSWORD:");
                 if (entered === savedPass) {
+                    syncCustomProviderSafetyToggle();
                     document.getElementById('admin-overlay').style.display = 'flex';
                 } else if (entered !== null) showToast("ACCESS DENIED: INCORRECT PASSWORD");
             }

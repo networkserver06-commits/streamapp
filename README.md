@@ -73,6 +73,8 @@ NEXT_PUBLIC_ALLOWED_PLAYER_HOSTS=player.your-domain.com,cdn.your-domain.com
 
 The allowlist accepts exact hostnames only, not wildcards. The custom host is then available to the three player template variables above.
 
+The Admin panel includes **ENABLE CUSTOM PROVIDER HOSTS**, which is stored locally and defaults to **OFF**. Built-in official YouTube, Internet Archive, and Vimeo sources continue to work; turning the control on is required before the app will display an explicitly allowlisted custom Vercel host.
+
 Common audio formats include MP3, M4A, AAC, WAV, OGG, OPUS, and FLAC. Common video formats include MP4, WebM, MOV, and HLS; actual support varies by device. DRM playback and MPEG-DASH are not implemented.
 
 ## Access-control note
