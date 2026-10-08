@@ -40,6 +40,8 @@ The hybrid player loads TMDB title metadata, release date, overview, rating, and
 
 YouTube playback offers both the privacy-enhanced `youtube-nocookie.com` embed and an official `youtube.com` fallback in the source selector. YouTube may still require sign-in or an “I’m not a robot” check for a particular network, IP, video, or account; this is enforced by YouTube and cannot be bypassed by the app.
 
+All recognized YouTube links and keys are normalized to the privacy-enhanced embed format with autoplay, related-video, inline, and iframe API parameters. Direct MP4, WebM, MOV, and HLS URLs use the native HTML5 video control; HLS uses hls.js when supported and falls back to the browser’s native HLS implementation. Internet Archive catalog items use the official `https://archive.org/embed/{archive_id}` player.
+
 The player has a runtime **Server / Source Selector**. On this static Vercel app, runtime configuration is supplied through `window.STREAMHD_PLAYER_CONFIG` or the Admin panel’s **APPROVED PLAYER TEMPLATE** field (the equivalent of a client-exposed `.env.local` value). Supported placeholders are `{tmdb_id}`, `{type}`, `{season}`, `{episode}`, `{youtube_key}`, `{archive_id}`, and `{authorized_url}`. Only YouTube, Internet Archive, Vimeo, and approved direct media hosts are accepted; unapproved embed gateways are rejected. TV details load seasons and episodes from TMDB, update the active episode state, and automatically play an official YouTube episode clip when TMDB lists one.
 
 Example runtime configuration, loaded before the app script:

@@ -158,7 +158,7 @@
             align-items: center; 
             justify-content: center; 
         }
-        #player, #movie-frame, #yt-frame, #game-frame, #audio-player {
+        #player, #native-video, #movie-frame, #yt-frame, #game-frame, #audio-player {
             width: 100%; height: 100%; position: absolute; inset: 0; border: none;
             display: none; background: #000; z-index: 5;
         }
@@ -953,6 +953,7 @@
             <div class="stage-container" id="stage">
                 <div id="loader" class="loader"></div>
                 <div id="player"></div>
+                <video id="native-video" controls autoplay playsinline preload="metadata" aria-label="Native video player"></video>
                 <audio id="audio-player" controls playsinline preload="metadata" aria-label="Audio player"></audio>
                 <iframe id="movie-frame" referrerpolicy="no-referrer" allow="autoplay; encrypted-media; fullscreen" allowfullscreen frameborder="0"></iframe>
                 <iframe id="yt-frame" referrerpolicy="strict-origin-when-cross-origin" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen frameborder="0"></iframe>
@@ -1085,7 +1086,7 @@
         let currentFilter = 'all';
         let searchMode = 'movie';
         const DEFAULT_PLAYER_SOURCES = [
-            { id: 'youtube', label: 'Official YouTube', template: 'https://www.youtube-nocookie.com/embed/{youtube_key}?autoplay=1&rel=0&playsinline=1', variable: 'youtube_key' },
+            { id: 'youtube', label: 'Official YouTube', template: 'https://www.youtube-nocookie.com/embed/{youtube_key}?autoplay=1&rel=0&playsinline=1&enablejsapi=1', variable: 'youtube_key' },
             { id: 'youtube-standard', label: 'YouTube standard fallback', template: 'https://www.youtube.com/embed/{youtube_key}?autoplay=1&rel=0&playsinline=1', variable: 'youtube_key' },
             { id: 'archive', label: 'Internet Archive', template: 'https://archive.org/embed/{archive_id}', variable: 'archive_id' },
             { id: 'authorized', label: 'Authorized media', template: '{authorized_url}', variable: 'authorized_url' }
@@ -1171,6 +1172,20 @@
             const url = source && (source.url || expandPlayerTemplate(source.template, context));
             if (!url || !allowedPlayerHost(url)) return showToast('SOURCE IS NOT AN APPROVED EMBED HOST');
             activePlayerContext = { ...context };
+            const sourceKind = mediaKind(url);
+            if (sourceKind === 'video' || sourceKind === 'hls') {
+                playNativeVideo(url, sourceKind);
+                setPlayerStatus(sourceKind === 'hls' ? 'Live / HLS playing' : 'Video playing');
+                renderPlayerSources(context);
+                return;
+            }
+            if (sourceKind === 'audio') {
+                hideAllPlayers(); triggerLoader();
+                const audio = document.getElementById('audio-player');
+                audio.src = url; audio.style.display = 'block'; audio.load();
+                audio.play().catch(() => setPlayerStatus('Audio is ready. Press Play to start (autoplay may be blocked).'));
+                setPlayerStatus('Audio playing'); renderPlayerSources(context); return;
+            }
             hideAllPlayers(); triggerLoader();
             if (source.id === 'archive' || new URL(url).hostname.includes('archive.org')) {
                 const frame = document.getElementById('movie-frame'); frame.style.display = 'block'; frame.src = url;
@@ -1395,13 +1410,38 @@
         }
         function hideAllPlayers() {
             if (activeHls) { activeHls.destroy(); activeHls = null; }
-            ['player', 'audio-player', 'movie-frame', 'yt-frame', 'game-frame'].forEach(id => {
+            ['player', 'native-video', 'audio-player', 'movie-frame', 'yt-frame', 'game-frame'].forEach(id => {
                 const el = document.getElementById(id); if (el) el.style.display = 'none';
             });
+            const nativeVideo = document.getElementById('native-video');
+            if (nativeVideo) { nativeVideo.pause(); nativeVideo.removeAttribute('src'); nativeVideo.load(); }
             const audio = document.getElementById('audio-player');
             if (audio) { audio.pause(); audio.removeAttribute('src'); audio.load(); }
             if (art) { try { art.pause(); } catch {} }
             ['movie-frame', 'yt-frame', 'game-frame'].forEach(id => { const el = document.getElementById(id); if (el) el.src = ''; });
+        }
+        function playNativeVideo(url, kind = 'video') {
+            const video = document.getElementById('native-video');
+            if (!video) return false;
+            hideAllPlayers();
+            triggerLoader();
+            video.style.display = 'block';
+            video.controls = true; video.autoplay = true; video.playsInline = true;
+            if (activeHls) { activeHls.destroy(); activeHls = null; }
+            if (kind === 'hls' && window.Hls && Hls.isSupported()) {
+                activeHls = new Hls({ enableWorker: true, backBufferLength: 30 });
+                activeHls.loadSource(url); activeHls.attachMedia(video);
+                activeHls.on(Hls.Events.ERROR, (_event, data) => {
+                    if (!data.fatal) return;
+                    if (data.type === Hls.ErrorTypes.NETWORK_ERROR) activeHls.startLoad();
+                    else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) activeHls.recoverMediaError();
+                    else { activeHls.destroy(); activeHls = null; setPlayerStatus('HLS playback is unavailable on this device or source.'); }
+                });
+            } else {
+                video.src = url; video.load();
+            }
+            video.play().catch(() => setPlayerStatus('Video is ready. Press Play to start (autoplay may be blocked).'));
+            return true;
         }
         function playDirectMedia(rawUrl, title = 'Direct media', forcedKind = '') {
             const url = safeWebUrl(rawUrl);
@@ -1432,8 +1472,7 @@
                 setPlayerStatus('Audio playing'); return true;
             }
             if (kind === 'video' || kind === 'hls') {
-                document.getElementById('player').style.display = 'block';
-                art.switchUrl(url, kind === 'hls' ? 'm3u8' : undefined);
+                playNativeVideo(url, kind);
                 setPlayerStatus(kind === 'hls' ? 'Live / HLS playing' : 'Video playing'); return true;
             }
             setPlayerStatus('Unsupported media link.');
@@ -1758,7 +1797,7 @@
                 const data = await tmdbFetch(`tv/${encodeURIComponent(ch.tmdbId)}/season/${encodeURIComponent(seasonNumber)}/episode/${encodeURIComponent(episodeNumber)}/videos`);
                 const video = (data.results || []).find(item => item.site === 'YouTube' && (item.type === 'Trailer' || item.type === 'Clip'));
                 if (video && video.key) {
-                    const template = 'https://www.youtube-nocookie.com/embed/{youtube_key}?autoplay=1&rel=0&playsinline=1';
+                    const template = 'https://www.youtube-nocookie.com/embed/{youtube_key}?autoplay=1&rel=0&playsinline=1&enablejsapi=1';
                     const context = { ...activePlayerContext, youtube_key: video.key };
                     playConfiguredSource({ id: 'youtube', label: 'Official YouTube Episode Clip', template, url: expandPlayerTemplate(template, context) }, context);
                 } else setPlayerStatus(`Selected ${ch.name} — Season ${seasonNumber}, Episode ${episodeNumber}. No official YouTube clip is listed.`);
@@ -1786,7 +1825,7 @@
                         || (data.results || []).find(video => video.site === 'YouTube' && video.type === 'Clip');
                     if (trailer && trailer.key) {
                         const trailerContext = { ...context, title: `${ch.name} trailer`, youtube_key: trailer.key };
-                        const template = 'https://www.youtube-nocookie.com/embed/{youtube_key}?autoplay=1&rel=0&playsinline=1';
+                        const template = 'https://www.youtube-nocookie.com/embed/{youtube_key}?autoplay=1&rel=0&playsinline=1&enablejsapi=1';
                         playConfiguredSource({ id: 'youtube', label: 'Official YouTube Trailer', template, url: expandPlayerTemplate(template, trailerContext) }, trailerContext);
                         return;
                     }
@@ -1807,7 +1846,7 @@
                     const trailer = data.results.find(v => v.type === "Trailer") || data.results[0];
                     closeOverlay('details-overlay');
                     const context = { ...activePlayerContext, tmdb_id: ch.tmdbId, type: ch.cType, title: `${ch.name} trailer`, youtube_key: trailer.key };
-                    const template = 'https://www.youtube-nocookie.com/embed/{youtube_key}?autoplay=1&rel=0&playsinline=1';
+                    const template = 'https://www.youtube-nocookie.com/embed/{youtube_key}?autoplay=1&rel=0&playsinline=1&enablejsapi=1';
                     playConfiguredSource({ id: 'youtube', label: 'Official YouTube Trailer', template, url: expandPlayerTemplate(template, context) }, context);
                 } else { showToast("TRAILER NOT FOUND"); }
             } catch(e) { showToast("ERROR FETCHING TRAILER"); }

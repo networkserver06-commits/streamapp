@@ -3,6 +3,7 @@ const ALLOWED_ENV_KEYS = [
   'NEXT_PUBLIC_SERVER_2_URL',
   'NEXT_PUBLIC_SERVER_3_URL'
 ];
+const BUILT_IN_HOSTS = ['youtube.com', 'youtube-nocookie.com', 'archive.org', 'vimeo.com', 'player.vimeo.com'];
 
 function getExtraHosts() {
   return String(process.env.NEXT_PUBLIC_ALLOWED_PLAYER_HOSTS || '')
@@ -35,7 +36,7 @@ module.exports = function playerConfigHandler(req, res) {
 
   const values = ALLOWED_ENV_KEYS.map((key) => String(process.env[key] || '').trim())
     .map((template) => templateHost(template) ? template : '');
-  const allowedHosts = getExtraHosts();
+  const allowedHosts = [...new Set([...BUILT_IN_HOSTS, ...getExtraHosts()])];
   const providerHosts = [...new Set(values.map(templateHost).filter(Boolean))];
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
