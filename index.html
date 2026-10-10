@@ -1342,7 +1342,9 @@
         const storedByName = new Map(validStoredChannels.map(item => [item.name.toLowerCase(), item]));
         const mergedDefaults = DEFAULT_CHANNELS.map(item => {
             const saved = storedByName.get(item.name.toLowerCase()) || {};
-            return { ...item, ...saved, name: item.name, type: item.type, category: item.category, ...(item.channelId ? { channelId: item.channelId } : {}), fav: saved.fav ?? item.fav, watched: saved.watched ?? item.watched };
+            const merged = { ...item, ...saved, name: item.name, type: item.type, category: item.category, ...(item.channelId ? { channelId: item.channelId } : {}), fav: saved.fav ?? item.fav, watched: saved.watched ?? item.watched };
+            if (item.category === 'kenya') { delete merged.liveVideoId; delete merged.id; delete merged.playlistId; delete merged.url; }
+            return merged;
         });
         const customStored = validStoredChannels.filter(item => !defaultNames.has(item.name.toLowerCase()));
         let CHANNELS = [...mergedDefaults, ...customStored].slice(0, 500);
@@ -2245,7 +2247,17 @@
             let openedSource = true;
             if (ch.type === 'youtube') {
                 const frame = document.getElementById('yt-frame');
-                if (ch.liveVideoId) {
+                if (ch.category === 'kenya' && ch.channelId) {
+                    const embedUrl = youtubeChannelEmbedUrl(ch.channelId);
+                    if (embedUrl) {
+                        frame.style.display = 'block';
+                        frame.src = embedUrl;
+                        setPlayerStatus('Playing official live channel');
+                        showToast('OPENING OFFICIAL LIVE TV');
+                    } else {
+                        openedSource = youtubeChannelFallback(ch.name, ch.channelId, ch.channelUrl || '');
+                    }
+                } else if (ch.liveVideoId) {
                     frame.style.display = 'block';
                     frame.src = youtubeEmbedUrl(encodeURIComponent(ch.liveVideoId));
                     setPlayerStatus('Playing official live broadcast');
