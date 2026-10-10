@@ -24,6 +24,10 @@ The TMDB key previously embedded in the public source should be revoked/rotated 
 
 Create an application in the [Jamendo developer portal](https://devportal.jamendo.com/), then add its Client ID—the public catalog API credential—to Vercel as `JAMENDO_CLIENT_ID` for Production and Preview. `JAMENDO_API_KEY` is also accepted as a fallback for compatibility, but `JAMENDO_CLIENT_ID` takes precedence when both exist. Remove any stale or incorrect `JAMENDO_API_KEY` value, redeploy after saving the verified Client ID, and test **Find Music**. **Find Music** searches Jamendo automatically and plays the returned stream URL in the built-in audio player; each result includes artist attribution and a link back to Jamendo. Use the API only within Jamendo's license terms and request limits.
 
+## YOCINEMA setup
+
+Add `YOCINEMA_API_KEY` to Vercel Project Settings for Production and Preview, then redeploy. Stream HD calls YOCINEMA only through `/api/yocinema`; the key is never sent to the browser. The **YOCINEMA** search button uses the catalog API, obtains a short-lived stream token server-side, and plays the returned authorized stream through the native HTML5 video player. Use YOCINEMA only for content and translations you are authorized to distribute.
+
 ## Add media and TV
 
 Use the paste panel to play YouTube, audio, video, or HLS links in the embedded player. **Download** uses a browser-integrated blob download for Jamendo tracks and direct media sources that permit CORS; embedded video and live HLS streams remain playback-only. Jamendo tracks include artist attribution and a link back to their Jamendo page. Direct source URLs must be absolute HTTP(S) links and work only when supported by the browser, the stream's codecs, and its CORS policy. For catalog items, add the TMDB ID for metadata and add an authorized direct MP4, WebM, MOV, or HLS URL in the optional playback field to enable **PLAY FULL**. TMDB does not provide full movie or series files.

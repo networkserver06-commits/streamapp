@@ -975,6 +975,7 @@
                 <div class="btn-grid">
                     <button class="btn btn-primary" onclick="openSearch('movie')">🎬 FIND MOVIE</button>
                     <button class="btn btn-primary" onclick="openSearch('tv')">📺 FIND SERIES</button>
+                    <button class="btn btn-primary" onclick="openSearch('yocinema')">🎞️ YOCINEMA</button>
                     <button class="btn btn-primary" onclick="openSearch('music')">🎵 FIND MUSIC</button>
                     <button class="btn btn-primary" onclick="openSearch('kenya')">🇰🇪 FIND KENYA TV</button>
                     <button class="btn btn-primary" onclick="openSearch('archive')">🎞️ FREE ARCHIVE FILMS</button>
@@ -1247,6 +1248,18 @@
                 const message = code === '5' ? 'JAMENDO_CLIENT_ID_INVALID' : apiErrorText(body.headers.error_message, `Jamendo request failed${code ? ` (code ${code})` : ''}.`);
                 throw new Error(message);
             }
+            return body;
+        }
+        async function yocinemaFetch(path, params = {}, options = {}) {
+            const url = new URL('/api/yocinema', window.location.origin);
+            url.search = new URLSearchParams({ path: String(path || '').replace(/^\//, ''), ...params }).toString();
+            const response = await fetch(url.toString(), {
+                method: options.method || 'GET',
+                headers: { Accept: 'application/json', ...(options.method === 'POST' ? { 'Content-Type': 'application/json' } : {}) },
+                ...(options.method === 'POST' ? { body: JSON.stringify(options.body || {}) } : {})
+            });
+            const body = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(apiErrorText(body.error || body, `YOCINEMA_HTTP_${response.status}`));
             return body;
         }
         function safeWebUrl(value) {
@@ -1867,12 +1880,12 @@
         function openSearch(type) {
             searchMode = type;
             document.getElementById('search-input').value = '';
-            document.getElementById('search-head-title').innerText = type === 'movie' ? ' 🎬 SEARCH MOVIES' : type === 'tv' ? '📺 SEARCH SERIES' : type === 'kenya' ? '🇰🇪 SEARCH KENYA TV' : type === 'archive' ? '🎞️ FREE ARCHIVE FILMS' : '🎵 SEARCH MUSIC';
+            document.getElementById('search-head-title').innerText = type === 'movie' ? ' 🎬 SEARCH MOVIES' : type === 'tv' ? '📺 SEARCH SERIES' : type === 'yocinema' ? '🎞️ SEARCH YOCINEMA' : type === 'kenya' ? '🇰🇪 SEARCH KENYA TV' : type === 'archive' ? '🎞️ FREE ARCHIVE FILMS' : '🎵 SEARCH MUSIC';
             document.getElementById('api-results').innerHTML = '';
-            document.getElementById('search-status').innerText = type === 'kenya' ? 'READY — SEARCH OFFICIAL KENYAN CHANNELS' : type === 'archive' ? 'SEARCHING INTERNET ARCHIVE PRELINGER COLLECTION...' : 'LOADING TRENDING TODAY...';
+            document.getElementById('search-status').innerText = type === 'kenya' ? 'READY — SEARCH OFFICIAL KENYAN CHANNELS' : type === 'archive' ? 'SEARCHING INTERNET ARCHIVE PRELINGER COLLECTION...' : type === 'yocinema' ? 'LOADING YOCINEMA CATALOG...' : 'LOADING TRENDING TODAY...';
             document.getElementById('search-overlay').style.display = 'flex';
 
-            if (type === 'kenya') renderKenyaSearchResults(''); else if (type === 'archive') fetchArchiveResults(''); else fetchTrending(type);
+            if (type === 'kenya') renderKenyaSearchResults(''); else if (type === 'archive') fetchArchiveResults(''); else if (type === 'yocinema') fetchYocinemaResults(''); else fetchTrending(type);
             setTimeout(() => document.getElementById('search-input').focus(), 100);
         }
 
@@ -1955,6 +1968,53 @@
             if (!resBox.children.length) resBox.innerHTML = '<p style="padding:30px;color:#777">TMDB is unavailable and no saved catalog titles are available.</p>';
         }
 
+        async function fetchYocinemaResults(query) {
+            const resBox = document.getElementById('api-results');
+            try {
+                const data = await yocinemaFetch('movies', { page: 1, limit: 24, ...(query ? { search: query } : {}) });
+                const items = data && data.data && Array.isArray(data.data.movies) ? data.data.movies : [];
+                document.getElementById('search-status').innerText = items.length ? `FOUND ${items.length} YOCINEMA TITLES` : 'NO YOCINEMA TITLES FOUND';
+                renderYocinemaResults(items);
+            } catch (error) {
+                document.getElementById('search-status').innerText = error.message === 'YOCINEMA_API_KEY is not configured' ? 'YOCINEMA IS NOT CONFIGURED — ADD YOCINEMA_API_KEY IN VERCEL' : `YOCINEMA SEARCH FAILED: ${apiErrorText(error.message)}`;
+                resBox.innerHTML = '<p style="padding:30px;color:#777">YOCINEMA is temporarily unavailable.</p>';
+            }
+        }
+
+        function renderYocinemaResults(results) {
+            const resBox = document.getElementById('api-results');
+            resBox.replaceChildren();
+            results.forEach(item => {
+                const id = String(item && item._id || '').trim(); if (!id) return;
+                const title = String(item.title || 'Untitled');
+                const img = safeWebUrl(item.cover) || `https://ui-avatars.com/api/?name=${encodeURIComponent(title)}&background=222&color=ffd700&size=512`;
+                const card = document.createElement('button'); card.type = 'button'; card.className = 'api-card'; card.setAttribute('aria-label', `Play ${title}`);
+                const image = document.createElement('img'); image.src = img; image.alt = `${title} poster`; image.loading = 'lazy'; image.style.cssText = 'width:100%;height:100%;object-fit:cover';
+                const caption = document.createElement('span'); caption.textContent = `${title} — YOCINEMA ${String(item.type || 'movie').toUpperCase()}`; caption.style.cssText = 'position:absolute;bottom:0;width:100%;background:rgba(0,0,0,.9);padding:15px 10px;font-size:.8rem;font-weight:bold;text-align:left;color:#fff';
+                card.append(image, caption); card.addEventListener('click', () => { closeSearch(); playYocinemaItem(id, title); }); resBox.appendChild(card);
+            });
+        }
+
+        async function playYocinemaItem(movieId, title) {
+            try {
+                const result = await yocinemaFetch(`movies/${encodeURIComponent(movieId)}`);
+                const data = result && result.data ? result.data : result;
+                const episode = data && Array.isArray(data.episodes) && data.episodes.length ? data.episodes[0] : null;
+                const streamUrl = episode && episode.streamUrl ? episode.streamUrl : data && data.streamUrl;
+                if (!streamUrl) throw new Error('YOCINEMA title has no stream URL');
+                const tokenResult = await yocinemaFetch(`movies/${encodeURIComponent(movieId)}/stream-token`, {}, { method: 'POST', body: {} });
+                const tokenData = tokenResult && tokenResult.data ? tokenResult.data : tokenResult;
+                const token = String(tokenData && tokenData.streamToken || '').trim();
+                if (!token) throw new Error('YOCINEMA did not return a playback token');
+                const playable = new URL(streamUrl); playable.searchParams.set('streamToken', token);
+                closeOverlay('search-overlay');
+                playDirectMedia(playable.href, title, 'video');
+                setPlayerStatus(episode ? `YOCINEMA S${episode.season || 1} E${episode.episode || 1} playing` : 'YOCINEMA playing');
+            } catch (error) {
+                showToast(`YOCINEMA PLAYBACK FAILED: ${apiErrorText(error.message)}`);
+            }
+        }
+
         async function fetchTrending(type) {
             const resBox = document.getElementById('api-results');
             try {
@@ -2007,6 +2067,7 @@
             try {
                 if (searchMode === 'archive') { fetchArchiveResults(query); return; }
                 if (searchMode === 'kenya') { renderKenyaSearchResults(query); return; }
+                if (searchMode === 'yocinema') { fetchYocinemaResults(query); return; }
                 if (searchMode === 'music') {
                     const data = await jamendoFetch({ search: query, order: 'relevance' });
                     if (data.results && data.results.length > 0) {
