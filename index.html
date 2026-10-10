@@ -869,6 +869,13 @@
                 <button class="btn" style="border-color: #ff3131; color: #ff3131; font-size: 1rem;" onclick="closeOverlay('search-overlay')">CLOSE</button>
             </div>
             <div id="search-status" style="font-family:'Source Code Pro'; color:var(--primary); margin-bottom: 20px; font-size: 0.9rem;">LOADING TRENDING...</div>
+            <div id="yocinema-language-controls" style="display:none;align-items:center;gap:10px;margin:-8px 0 18px;padding:10px 12px;border:1px solid rgba(255,215,0,.25);border-radius:10px;background:rgba(255,215,0,.05);">
+                <label for="yocinema-playback-mode" style="font:700 .75rem 'Source Code Pro';color:#ddd;">PLAYBACK LANGUAGE</label>
+                <select id="yocinema-playback-mode" class="input-lg" style="padding:8px 10px;max-width:220px;" aria-label="YOCINEMA playback language">
+                    <option value="translated">Translated version</option>
+                    <option value="original">Original version</option>
+                </select>
+            </div>
             <div id="api-results"></div>
         </div>
     </div>
@@ -1897,6 +1904,8 @@
             document.getElementById('search-head-title').innerText = type === 'movie' ? ' 🎬 SEARCH MOVIES' : type === 'tv' ? '📺 SEARCH SERIES' : type === 'yocinema' ? '🎞️ SEARCH YOCINEMA' : type === 'kenya' ? '🇰🇪 SEARCH KENYA TV' : type === 'archive' ? '🎞️ FREE ARCHIVE FILMS' : '🎵 SEARCH MUSIC';
             document.getElementById('api-results').innerHTML = '';
             document.getElementById('search-status').innerText = type === 'kenya' ? 'READY — SEARCH OFFICIAL KENYAN CHANNELS' : type === 'archive' ? 'SEARCHING INTERNET ARCHIVE PRELINGER COLLECTION...' : type === 'yocinema' ? 'LOADING YOCINEMA CATALOG...' : 'LOADING TRENDING TODAY...';
+            const yocinemaLanguageControls = document.getElementById('yocinema-language-controls');
+            if (yocinemaLanguageControls) yocinemaLanguageControls.style.display = type === 'yocinema' ? 'flex' : 'none';
             document.getElementById('search-overlay').style.display = 'flex';
 
             if (type === 'kenya') renderKenyaSearchResults(''); else if (type === 'archive') fetchArchiveResults(''); else if (type === 'yocinema') fetchYocinemaResults(''); else fetchTrending(type);
@@ -1913,6 +1922,7 @@
             document.getElementById('search-input').value = '';
             document.getElementById('search-head-title').innerText = '♙ VIDEO JOCKEYS';
             document.getElementById('search-status').innerText = 'LOADING VJ DIRECTORY...';
+            document.getElementById('yocinema-language-controls').style.display = 'flex';
             document.getElementById('api-results').replaceChildren();
             document.getElementById('search-overlay').style.display = 'flex';
             try {
@@ -2041,19 +2051,20 @@
 
         async function playYocinemaItem(movieId, title) {
             try {
+                const playbackMode = document.getElementById('yocinema-playback-mode')?.value === 'original' ? 'original' : 'translated';
                 const result = await yocinemaFetch(`movies/${encodeURIComponent(movieId)}`);
                 const data = result && result.data ? result.data : result;
                 const episode = data && Array.isArray(data.episodes) && data.episodes.length ? data.episodes[0] : null;
                 const streamUrl = episode && episode.streamUrl ? episode.streamUrl : data && data.streamUrl;
                 if (!streamUrl) throw new Error('YOCINEMA title has no stream URL');
-                const tokenResult = await yocinemaFetch(`movies/${encodeURIComponent(movieId)}/stream-token`, {}, { method: 'POST', body: {} });
+                const tokenResult = await yocinemaFetch(`movies/${encodeURIComponent(movieId)}/stream-token`, {}, { method: 'POST', body: { type: playbackMode } });
                 const tokenData = tokenResult && tokenResult.data ? tokenResult.data : tokenResult;
                 const token = String(tokenData && tokenData.streamToken || '').trim();
                 if (!token) throw new Error('YOCINEMA did not return a playback token');
-                const playable = new URL(streamUrl); playable.searchParams.set('streamToken', token);
+                const playable = new URL(streamUrl); playable.searchParams.set('streamToken', token); playable.searchParams.set('type', playbackMode);
                 closeOverlay('search-overlay');
                 playDirectMedia(playable.href, title, 'video');
-                setPlayerStatus(episode ? `YOCINEMA S${episode.season || 1} E${episode.episode || 1} playing` : 'YOCINEMA playing');
+                setPlayerStatus(episode ? `YOCINEMA ${playbackMode} S${episode.season || 1} E${episode.episode || 1} playing` : `YOCINEMA ${playbackMode} playing`);
             } catch (error) {
                 showToast(`YOCINEMA PLAYBACK FAILED: ${apiErrorText(error.message)}`);
             }

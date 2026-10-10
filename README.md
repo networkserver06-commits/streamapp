@@ -26,7 +26,7 @@ Create an application in the [Jamendo developer portal](https://devportal.jamend
 
 ## YOCINEMA setup
 
-Add `YOCINEMA_API_KEY` to Vercel Project Settings for Production and Preview, then redeploy. Stream HD calls YOCINEMA only through `/api/yocinema`; the key is never sent to the browser. The **YOCINEMA** search button uses the catalog API, obtains a short-lived stream token server-side, and plays the returned authorized stream through the native HTML5 video player. Use YOCINEMA only for content and translations you are authorized to distribute.
+Add `YOCINEMA_API_KEY` to Vercel Project Settings for Production and Preview, then redeploy. Stream HD calls YOCINEMA only through `/api/yocinema`; the key is never sent to the browser. The **YOCINEMA** search button uses the catalog API, obtains a short-lived stream token server-side, and plays the returned authorized stream through the native HTML5 video player. The interface language is English by default, and the YOCINEMA player offers **Translated version** and **Original version** modes using the provider's documented `type=translated` and `type=original` options. Use YOCINEMA only for content and translations you are authorized to distribute.
 
 ## Add media and TV
 
